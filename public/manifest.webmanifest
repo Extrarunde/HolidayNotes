@@ -1,0 +1,57 @@
+{
+  "name": "Holiday Notes",
+  "short_name": "Holiday",
+  "description": "Packlisten, Einkaufslisten und gemeinsame Reiseplanung für Urlaube.",
+  "start_url": "../?source=pwa",
+  "scope": "../",
+  "id": "holiday-notes",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7f4",
+  "theme_color": "#1f7a63",
+  "categories": ["productivity", "travel", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Neue Reise",
+      "short_name": "Reise",
+      "description": "Holiday Notes öffnen und eine Reise anlegen.",
+      "url": "../?action=new-trip",
+      "icons": [
+        {
+          "src": "./assets/app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
+    {
+      "name": "Einkaufsliste",
+      "short_name": "Einkauf",
+      "description": "Direkt zur Einkaufsliste wechseln.",
+      "url": "../?view=shopping",
+      "icons": [
+        {
+          "src": "./assets/app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "./assets/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

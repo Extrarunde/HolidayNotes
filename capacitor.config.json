@@ -1,0 +1,8 @@
+{
+  "appId": "com.holidaynotes.app",
+  "appName": "Holiday Notes",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

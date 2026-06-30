@@ -1,0 +1,27 @@
+{
+  "name": "holiday-notes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile Packlisten-App für Reisen, Einkäufe und gemeinsame Planung.",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build:web": "node scripts/ensure-supabase-config.js && node scripts/build-web.js",
+    "release:web": "npm run check && npm run build:web",
+    "cap:sync": "npm run build:web && cap sync",
+    "check": "node --check src/app.js && node --check server.js && node scripts/check-pwa.js",
+    "check:pwa": "node scripts/check-pwa.js"
+  },
+  "keywords": [
+    "urlaub",
+    "packliste",
+    "einkaufsliste"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@supabase/supabase-js": "^2.105.4"
+  }
+}

@@ -1,0 +1,1135 @@
+﻿<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1f7a63" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Holiday Notes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>Holiday Notes</title>
+    <link rel="manifest" href="./public/manifest.webmanifest" />
+    <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="./src/styles.css?v=101" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Urlaubslisten">
+        <div class="sidebar-top">
+          <button class="brand brand-home" id="homeButton" type="button" aria-label="Zur Startseite">
+            <div>
+              <h1 id="currentPageTitle">Packliste</h1>
+              <p id="currentPageSubtitle" class="view-trip-name" data-trip-name></p>
+            </div>
+          </button>
+          <details class="user-menu" id="userMenu">
+            <summary class="user-menu-button" id="userMenuButton">
+              <span class="account-avatar" id="accountAvatar" aria-hidden="true">HN</span>
+            </summary>
+            <div class="user-menu-dropdown">
+              <div class="signed-out-menu" id="signedOutMenu">
+                <h3>Nicht angemeldet</h3>
+                <p class="muted" id="cloudStatus">Melde dich an, um Listen zu speichern und zu teilen.</p>
+                <div class="account-signed-out" id="accountSignedOut">
+                  <button id="openAuthButton" type="button">Einloggen</button>
+                </div>
+              </div>
+              <div class="signed-in-menu" id="signedInMenu" hidden>
+                <div class="profile-summary-card">
+                  <span class="account-avatar menu-avatar" id="accountMenuAvatar" aria-hidden="true">HN</span>
+                  <div>
+                    <strong id="accountName">Konto</strong>
+                    <span id="accountEmail"></span>
+                  </div>
+                  <span id="cloudBadge">Gerät</span>
+                </div>
+                <div class="account-menu-actions">
+                  <button id="accountProfileButton" type="button">Einstellungen</button>
+                  <button id="accountSyncButton" type="button" hidden>Jetzt speichern</button>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="connection-banner" id="connectionBanner" hidden>
+          Keine Verbindung. Änderungen bleiben auf diesem Gerät.
+        </div>
+
+        <div class="local-mode-toast" id="localModeToast" hidden>
+          Du bist nicht eingeloggt. Deine Listen bleiben lokal auf diesem Gerät.
+        </div>
+
+        <section class="panel active-trip-panel" aria-label="Aktive Reise">
+          <span id="tripCount" hidden>0</span>
+          <div class="trip-list" id="tripList"></div>
+        </section>
+
+        <details class="panel compact fold-panel">
+          <summary class="fold-summary">
+            <span>Sicherung</span>
+          </summary>
+          <p class="muted">Export und Import bleiben als zusätzliche Sicherung erhalten.</p>
+          <div class="split-actions">
+            <button id="exportButton" type="button">Export</button>
+            <label class="file-button">
+              Import
+              <input id="importInput" type="file" accept="application/json" />
+            </label>
+          </div>
+        </details>
+      </aside>
+
+      <section class="workspace" aria-live="polite">
+        <div class="app-status-toast" id="appStatusToast" role="status" hidden></div>
+        <nav class="tabs" aria-label="Ansichten">
+          <button class="tab active" data-view="pack" type="button"><span>Packliste</span></button>
+          <button class="tab" data-view="shopping" type="button"><span>Einkaufsliste</span></button>
+          <button class="tab" data-view="food" type="button"><span>Essen</span></button>
+          <button class="tab" data-view="manage" type="button"><span>Reisen</span></button>
+        </nav>
+        <button class="pack-empty-trip-link" id="packEmptyTripLink" type="button" hidden>
+          <span>Noch keine Packliste</span>
+          <strong>Reise anlegen</strong>
+        </button>
+
+        <section class="view active" id="packView">
+          <div class="view-head">
+            <div>
+              <h2>Packliste</h2>
+              <p class="view-trip-name" data-trip-name></p>
+            </div>
+            <div class="pack-progress" id="packProgress">
+              <div>
+                <span>Gepackt</span>
+                <strong id="packProgressText">0/0</strong>
+              </div>
+              <span class="pack-progress-track" aria-hidden="true"><span id="packProgressBar"></span></span>
+            </div>
+          </div>
+          <div class="quick-filters" aria-label="Packliste filtern">
+            <button class="filter-toggle-button" id="toggleFilterButton" type="button" aria-label="Filter öffnen" title="Filter öffnen" aria-expanded="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M4 5h16l-6.2 7.2v5.1l-3.6 1.8v-6.9L4 5Z"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="filter-dialog" id="filterPanel" role="dialog" aria-modal="true" aria-labelledby="filterDialogTitle" hidden>
+            <div class="auth-backdrop" id="filterBackdrop"></div>
+            <div class="auth-card filter-card">
+              <button class="auth-close" id="closeFilterButton" type="button" aria-label="Filter schließen">x</button>
+              <div class="auth-card-header">
+                <div class="brand-mark" aria-hidden="true">HN</div>
+                <div>
+                  <p class="eyebrow">Packliste</p>
+                  <h2 id="filterDialogTitle">Filter</h2>
+                </div>
+              </div>
+              <div class="filter-fields">
+                <label>
+                  Suche
+                  <input id="searchInput" type="search" placeholder="Gegenstand suchen..." />
+                </label>
+                <label class="category-filter-field">
+                  Kategorie
+                  <select class="native-category-select" id="categoryFilter" aria-label="Kategorie filtern"></select>
+                  <div class="category-picker" id="categoryPicker" aria-label="Kategorie wählen"></div>
+                </label>
+                <label>
+                  Wer packt es ein
+                  <select class="native-assignee-select" id="assigneeFilter" aria-label="Nach Person filtern"></select>
+                  <div class="assignee-picker" id="assigneePicker" aria-label="Person wählen"></div>
+                </label>
+              </div>
+              <div class="filter-segment" aria-label="Status wählen">
+                <button class="filter-chip active" data-status="all" type="button">Alle</button>
+                <button class="filter-chip" data-status="missing" type="button">Offene</button>
+                <button class="filter-chip" data-status="shopping" type="button">Einkauf</button>
+              </div>
+              <button class="filter-reset-button" id="resetFilterButton" type="button">Filter zurücksetzen</button>
+            </div>
+          </div>
+          <input id="statusFilter" type="hidden" value="all" />
+
+          <div class="stats" id="stats" hidden></div>
+
+          <div class="slider-status" id="packSliderStatus" hidden>
+            <div class="slider-lines" id="packSliderDots" aria-label="Slider Position"></div>
+          </div>
+          <div class="grouped-list" id="tripItems"></div>
+          <button class="floating-add-button" id="quickAddItemButton" type="button" aria-label="Gegenstand hinzufügen">+</button>
+        </section>
+
+        <section class="view" id="shoppingView">
+          <div class="shopping-head">
+            <div>
+              <h2>Einkaufsliste</h2>
+              <p class="view-trip-name" data-trip-name></p>
+            </div>
+            <button class="filter-toggle-button shopping-filter-toggle" id="toggleShoppingFilterButton" type="button" aria-label="Einkaufsfilter öffnen" title="Einkaufsfilter öffnen" aria-expanded="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M4 5h16l-6.2 7.2v5.1l-3.6 1.8v-6.9L4 5Z"></path>
+              </svg>
+            </button>
+            <button class="shopping-complete-button" id="completeShoppingButton" type="button" hidden>Einkauf abschließen</button>
+          </div>
+          <div class="filter-dialog" id="shoppingFilterPanel" role="dialog" aria-modal="true" aria-labelledby="shoppingFilterDialogTitle" hidden>
+            <div class="auth-backdrop" id="shoppingFilterBackdrop"></div>
+            <div class="auth-card filter-card">
+              <button class="auth-close" id="closeShoppingFilterButton" type="button" aria-label="Einkaufsfilter schließen">x</button>
+              <div class="auth-card-header">
+                <div class="brand-mark" aria-hidden="true">HN</div>
+                <div>
+                  <p class="eyebrow">Einkaufsliste</p>
+                  <h2 id="shoppingFilterDialogTitle">Filter</h2>
+                </div>
+              </div>
+              <div class="filter-fields">
+                <label>
+                  Suche
+                  <input id="shoppingSearchInput" type="search" placeholder="Einkauf suchen" aria-label="Einkauf suchen" />
+                </label>
+              </div>
+              <div class="filter-segment shopping-mode-switch" role="tablist" aria-label="Einkaufsliste filtern">
+                <button class="filter-chip active" data-shopping-mode="food" type="button" role="tab" aria-selected="true">Essen</button>
+                <button class="filter-chip" data-shopping-mode="other" type="button" role="tab" aria-selected="false">Alles andere</button>
+              </div>
+              <div class="filter-segment shopping-status-switch" role="tablist" aria-label="Einkaufsstatus filtern">
+                <button class="filter-chip active" data-shopping-status="open" type="button" role="tab" aria-selected="true">Offen</button>
+                <button class="filter-chip" data-shopping-status="all" type="button" role="tab" aria-selected="false">Alle</button>
+                <button class="filter-chip" data-shopping-status="bought" type="button" role="tab" aria-selected="false">Gekauft</button>
+              </div>
+              <button class="filter-reset-button" id="resetShoppingFilterButton" type="button">Filter zurücksetzen</button>
+            </div>
+          </div>
+          <div class="grouped-list" id="shoppingItems"></div>
+          <button class="floating-add-button shopping-add-button" id="quickAddShoppingButton" type="button" aria-label="Essen zur Einkaufsliste hinzufügen">+</button>
+        </section>
+
+        <section class="view" id="foodView">
+          <div class="food-head">
+            <div>
+              <h2>Essen</h2>
+              <p class="view-trip-name" data-trip-name></p>
+            </div>
+          </div>
+          <div class="food-mode-switch" role="tablist" aria-label="Essen Ansicht" hidden></div>
+          <div class="food-action-grid" hidden>
+          <form class="food-form compact-food-form" id="mealTemplateForm" hidden>
+            <div class="food-card-title">
+              <strong>Aus Vorlage</strong>
+              <span>Gericht suchen und direkt übernehmen</span>
+            </div>
+            <label>
+              Gericht suchen
+              <input id="mealTemplateSearchInput" type="search" placeholder="z. B. Pasta, Frühstück..." />
+              <select id="mealTemplateSelect" size="6" hidden></select>
+              <div class="meal-template-preview" id="mealTemplatePreview" hidden></div>
+            </label>
+            <button type="submit">Vorlage laden</button>
+          </form>
+          <form class="food-form compact-food-form" id="foodIngredientForm" hidden>
+            <div class="food-card-title">
+              <strong>Einzelne Zutat</strong>
+              <span>Ohne Gericht direkt auf die Einkaufsliste</span>
+            </div>
+            <label>
+              Zutat
+              <input id="foodIngredientNameInput" required placeholder="z. B. Reis" />
+            </label>
+            <label>
+              Menge
+              <span class="quantity-unit-field">
+                <input id="foodIngredientQuantityInput" type="number" min="0" step="1" placeholder="500" />
+                <select id="foodIngredientUnitSelect" aria-label="Einheit">
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="ml">ml</option>
+                  <option value="l">l</option>
+                  <option value="Stück">Stück</option>
+                </select>
+              </span>
+            </label>
+            <button type="submit">Zur Einkaufsliste</button>
+          </form>
+          </div>
+          <div class="food-meals-panel" id="foodMealsPanel">
+            <div class="meal-day-strip food-day-strip" id="mealDayStrip" hidden></div>
+            <div class="food-kind-switch" role="tablist" aria-label="Essen Art">
+              <button class="active" data-meal-kind="meal" type="button" role="tab" aria-selected="true">Gerichte</button>
+              <button data-meal-kind="snack" type="button" role="tab" aria-selected="false">Snacks</button>
+            </div>
+            <div class="food-section-title">
+              <h3 id="mealListTitle">Gerichte</h3>
+              <div class="meal-central-actions" id="mealCentralActions" hidden style="display: none;">
+                <button id="repeatSelectedMealButton" type="button">Noch einmal</button>
+                <button class="secondary-danger" id="deleteSelectedMealButton" type="button">Löschen</button>
+              </div>
+            </div>
+            <div class="food-list" id="mealList"></div>
+          </div>
+          <div class="food-shopping-panel" id="foodShoppingPanel" hidden>
+            <div class="shopping-head food-shopping-head">
+              <div>
+                <h3>Einkaufsliste</h3>
+                <p class="view-trip-name" data-trip-name></p>
+              </div>
+              <button class="shopping-complete-button" id="foodCompleteShoppingButton" type="button" hidden>Einkauf abschließen</button>
+            </div>
+            <div class="grouped-list" id="foodShoppingItems"></div>
+          </div>
+          <button class="floating-add-button food-shopping-button" id="foodShoppingButton" type="button" aria-label="Zutaten zur Einkaufsliste hinzufügen" hidden></button>
+          <button class="floating-add-button food-add-button" id="createMealButton" type="button" aria-label="Gericht hinzufügen">+</button>
+        </section>
+
+        <section class="view" id="manageView">
+          <div class="manage-hero">
+            <div>
+              <h2>Reisen</h2>
+              <p class="muted">Aktive Reise und Mitreisende an einem Ort.</p>
+            </div>
+          </div>
+          <section class="trip-overview-panel" id="tripOverviewPanel" aria-label="Reiseübersicht"></section>
+          <div class="manage-team-grid">
+            <section class="timeline-panel" aria-labelledby="tripTimelineTitle">
+              <div class="timeline-head">
+                <div>
+                  <p class="eyebrow">Auswahl</p>
+                  <h3 id="tripTimelineTitle">Reise wechseln</h3>
+                </div>
+              </div>
+              <div class="trip-timeline" id="tripTimeline"></div>
+            </section>
+          <section class="trip-detail-panel trip-single-action-panel" id="tripManageFold" aria-label="Reise bearbeiten" hidden>
+            <div class="trip-manage-list" id="tripManageList"></div>
+          </section>
+          <details class="content-fold" id="templatesFold">
+            <summary class="content-summary">
+              <span>Vorlagen</span>
+            </summary>
+            <div class="template-workspace">
+              <div>
+                <h2>Eigene Vorlagen</h2>
+                <p class="muted">Speichere bewährte Packlisten und nutze sie später für neue Reisen.</p>
+              </div>
+              <div class="template-overview">
+                <div>
+                  <strong id="templateCountLabel">0 Vorlagen</strong>
+                  <span>Eigene Packlisten</span>
+                </div>
+                <label>
+                  Vorlage suchen
+                  <input id="templateSearchInput" type="search" placeholder="z. B. Strand, Camping..." />
+                </label>
+              </div>
+              <form class="add-form" id="saveTripTemplateForm">
+                <input id="newTemplateNameInput" required placeholder="Vorlagenname, z. B. Schweden Sommer" />
+                <button type="submit">Aus aktiver Reise speichern</button>
+              </form>
+              <div class="template-library" id="customTemplates"></div>
+              <details class="global-template-source">
+                <summary>Globale Packliste und Urlaubstypen</summary>
+                <div class="global-template-inner">
+                  <p class="muted">Die globale Liste bleibt als Ideenquelle erhalten. Deine eigenen Vorlagen stehen oben.</p>
+                  <div class="template-actions">
+                    <button id="addMissingTemplatesButton" type="button">Vorlagen übernehmen</button>
+                  </div>
+                  <div class="preset-actions">
+                    <select id="vacationTypeSelect" aria-label="Urlaubstyp wählen">
+                      <option value="strand">Strandurlaub</option>
+                      <option value="stadt">Städtetrip</option>
+                      <option value="camping">Camping</option>
+                      <option value="winter">Winterurlaub</option>
+                      <option value="business">Geschäftsreise</option>
+                      <option value="wandern">Wanderurlaub</option>
+                      <option value="roadtrip">Roadtrip</option>
+                      <option value="festival">Festival</option>
+                      <option value="wellness">Wellness</option>
+                      <option value="familie">Familienurlaub</option>
+                      <option value="baby">Baby und Kleinkind</option>
+                    </select>
+                    <button id="addVacationTypeButton" type="button">Urlaubstyp übernehmen</button>
+                  </div>
+                  <form class="add-form" id="addGlobalItemForm">
+                    <input id="newGlobalItemInput" required placeholder="Neue globale Idee" />
+                    <select id="newGlobalCategoryInput" aria-label="Kategorie">
+                      <option>Kleidung</option>
+                      <option>Dokumente</option>
+                      <option>Technik</option>
+                      <option>Hygiene</option>
+                      <option>Medizin</option>
+                      <option>Nahrung</option>
+                      <option>Freizeit</option>
+                    </select>
+                    <button type="submit">Speichern</button>
+                  </form>
+                  <div class="grouped-list" id="globalItems"></div>
+                </div>
+              </details>
+            </div>
+          </details>
+          <button class="floating-add-button manage-add-button" id="createTripButton" type="button" aria-label="Neue Reise anlegen">+</button>
+        </section>
+          </div>
+
+        <section class="view" id="peopleView">
+          <details class="content-fold team-main-fold">
+            <summary class="content-summary">
+              <span>Mitreisende</span>
+            </summary>
+            <div class="toolbar">
+              <div>
+                <h2>Mitreisende</h2>
+                <p class="view-trip-name" data-trip-name></p>
+              </div>
+            </div>
+            <div class="team-summary" id="teamSummary" hidden></div>
+            <div class="people-grid" id="peopleList"></div>
+          </details>
+          <details class="content-fold team-main-fold">
+            <summary class="content-summary">
+              <span>Freunde</span>
+            </summary>
+            <div class="invite-join-card">
+              <div>
+                <strong>Freund hinzufügen</strong>
+                <p class="muted">Name oder E-Mail speichern und der aktiven Reise hinzufügen.</p>
+              </div>
+              <form class="add-form" id="addPersonForm">
+                <input id="newPersonInput" required placeholder="Name oder E-Mail" />
+                <button type="submit">Hinzufügen</button>
+              </form>
+            </div>
+            <button class="secondary-danger leave-trip-button" id="leaveTripButton" type="button">Reise verlassen</button>
+          </details>
+          <details class="content-fold team-settings-fold">
+            <summary class="content-summary settings-summary">
+              <span><span aria-hidden="true">⚙</span> Einstellungen</span>
+            </summary>
+            <div class="team-account-panel">
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-profile" aria-hidden="true">👤</span><span>Profil</span></span>
+                  <span>Anzeigename</span>
+                </summary>
+                <div class="settings-section-body">
+                  <label>
+                    Anzeigename
+                    <input id="profileNameInput" placeholder="Dein Anzeigename" />
+                  </label>
+                  <button id="saveProfileButton" type="button">Profil speichern</button>
+                  <button class="secondary-danger" id="deleteAccountButton" type="button">Konto dauerhaft löschen</button>
+                </div>
+              </details>
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-mail" aria-hidden="true">✉</span><span>E-Mail</span></span>
+                  <span>Konto</span>
+                </summary>
+                <div class="settings-section-body">
+                  <label>
+                    Neue E-Mail-Adresse
+                    <input id="profileEmailInput" type="email" placeholder="Neue E-Mail-Adresse" />
+                  </label>
+                  <button id="changeEmailButton" type="button">E-Mail ändern</button>
+                </div>
+              </details>
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-lock" aria-hidden="true">🔒</span><span>Passwort</span></span>
+                  <span>Sicherheit</span>
+                </summary>
+                <div class="settings-section-body">
+                  <label>
+                    Neues Passwort
+                    <input id="profilePasswordInput" type="password" autocomplete="new-password" placeholder="Mindestens 6 Zeichen" minlength="6" />
+                  </label>
+                  <label>
+                    Passwort wiederholen
+                    <input id="profilePasswordConfirmInput" type="password" autocomplete="new-password" placeholder="Passwort wiederholen" minlength="6" />
+                  </label>
+                  <button id="changePasswordButton" type="button">Passwort speichern</button>
+                  <p class="muted">Wenn du dein aktuelles Passwort nicht mehr weißt, kannst du dir einen Link per E-Mail schicken lassen.</p>
+                  <button class="text-button" id="profileResetPasswordButton" type="button">Passwort zurücksetzen</button>
+                </div>
+              </details>
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-display" aria-hidden="true">◐</span><span>Anzeige</span></span>
+                  <span></span>
+                </summary>
+                <div class="settings-section-body">
+                  <label>
+                    Darstellung
+                    <select id="themeModeSelect">
+                      <option value="light">Hell</option>
+                      <option value="dark">Dunkel</option>
+                    </select>
+                  </label>
+                  <button id="installAppButton" type="button" hidden>App installieren</button>
+                  <p class="muted" id="installAppHint">Auf dem iPhone kannst du die App über Teilen und „Zum Home-Bildschirm“ installieren.</p>
+                </div>
+              </details>
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-friends" aria-hidden="true">👥</span><span>Freunde</span></span>
+                  <span id="accountFriendCount">0</span>
+                </summary>
+                <div class="settings-section-body">
+                  <label>
+                    Freund hinzufügen
+                    <span class="inline-add-field">
+                      <input id="accountFriendNameInput" placeholder="Name oder E-Mail" />
+                      <button id="addAccountFriendButton" type="button">+</button>
+                    </span>
+                  </label>
+                  <div class="activity-chip-list friend-chip-list" id="accountFriendsList"></div>
+                </div>
+              </details>
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-cloud" aria-hidden="true">☁</span><span>Cloud</span></span>
+                  <span></span>
+                </summary>
+                <div class="settings-section-body">
+                  <div class="cloud-actions" id="cloudActions" hidden>
+                    <p class="muted" id="syncStatusText">Änderungen werden lokal gespeichert und automatisch mit der Cloud synchronisiert, sobald du online bist.</p>
+                    <button id="syncToCloudButton" type="button" hidden>Jetzt speichern</button>
+                    <button id="loadFromCloudButton" type="button" hidden>Daten laden</button>
+                    <button id="enableLiveSyncButton" type="button" hidden>Automatisch speichern</button>
+                    <button class="secondary-danger" id="logoutButton" type="button">Abmelden</button>
+                  </div>
+                </div>
+              </details>
+              <details class="activity-fold">
+                <summary>
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-activity" aria-hidden="true">↻</span><span>Aktivität</span></span>
+                  <span id="activityCount">0</span>
+                </summary>
+                <div class="activity-list" id="activityList"></div>
+              </details>
+            </div>
+          </details>
+        </section>
+      </section>
+      <div class="floating-action-layer" id="floatingActionLayer" aria-label="Aktionen der aktuellen Seite"></div>
+    </main>
+
+    <section class="trip-dialog" id="tripPickerDialog" role="dialog" aria-modal="true" aria-labelledby="tripPickerTitle" hidden>
+      <div class="auth-backdrop" id="tripPickerBackdrop"></div>
+      <div class="auth-card trip-picker-card">
+        <button class="auth-close" id="closeTripPickerButton" type="button" aria-label="Reiseauswahl schließen">x</button>
+        <div class="auth-card-header">
+          <div>
+            <p class="eyebrow">Aktive Reise</p>
+            <h2 id="tripPickerTitle">Reise wechseln</h2>
+          </div>
+        </div>
+        <div class="trip-picker-list" id="tripPickerList"></div>
+        <div class="trip-picker-actions">
+          <button class="primary-action" id="newTripFromPickerButton" type="button">Neue Reise anlegen</button>
+          <button id="editActiveTripFromPickerButton" type="button">Aktive Reise bearbeiten</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="newTripDialog" role="dialog" aria-modal="true" aria-labelledby="newTripDialogTitle" hidden>
+      <div class="auth-backdrop" id="newTripBackdrop"></div>
+      <div class="auth-card">
+        <button class="auth-close" id="closeNewTripButton" type="button" aria-label="Reisefenster schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark" aria-hidden="true">HN</div>
+          <div>
+            <p class="eyebrow">Neue Reise</p>
+            <h2 id="newTripDialogTitle">Reise erstellen</h2>
+          </div>
+        </div>
+        <form class="auth-form" id="newTripForm">
+          <label>
+            Reise
+            <input id="newTripNameInput" placeholder="z. B. Schweden Sommerurlaub" required />
+          </label>
+          <label>
+            Ort für Wetter
+            <input id="newTripDestinationInput" placeholder="z. B. Stockholm, Schweden" autocomplete="address-level2" />
+          </label>
+          <div class="icon-picker" aria-label="Reise-Icon auswählen">
+            <input id="newTripIconInput" type="hidden" />
+            <button class="icon-choice active" data-icon="" type="button" aria-label="Kein Icon">HN</button>
+            <button class="icon-choice" data-icon="☀️" type="button" aria-label="Sonne">☀️</button>
+            <button class="icon-choice" data-icon="🏖️" type="button" aria-label="Strand">🏖️</button>
+            <button class="icon-choice" data-icon="🏔️" type="button" aria-label="Berge">🏔️</button>
+            <button class="icon-choice" data-icon="🏕️" type="button" aria-label="Camping">🏕️</button>
+            <button class="icon-choice" data-icon="🏙️" type="button" aria-label="Stadt">🏙️</button>
+            <button class="icon-choice" data-icon="✈️" type="button" aria-label="Flugreise">✈️</button>
+            <button class="icon-choice" data-icon="❄️" type="button" aria-label="Winter">❄️</button>
+          </div>
+          <div class="date-range manage-date-range trip-date-plan">
+            <label>
+              Anreise
+              <input id="newTripStartInput" type="date" />
+            </label>
+            <label>
+              Nächte
+            <input id="newTripDurationDaysInput" type="number" min="1" inputmode="numeric" placeholder="Nächte" />
+            </label>
+            <div class="trip-duration" id="newTripDurationLabel" aria-live="polite">Nächte eintragen</div>
+            <input id="newTripEndInput" type="hidden" />
+          </div>
+          <p class="calculated-date" id="newTripEndPreview" hidden></p>
+          <div class="trip-extra-grid">
+            <label>
+              Anreise mit
+              <input id="newTripTravelMethodInput" type="hidden" />
+              <span class="travel-method-buttons" data-travel-scope="new">
+                <button class="travel-method-button active" data-method="" type="button"><span aria-hidden="true"></span>Noch offen</button>
+                <button class="travel-method-button" data-method="Auto" type="button"><span aria-hidden="true">🚗</span>Auto</button>
+                <button class="travel-method-button" data-method="Zug" type="button"><span aria-hidden="true">🚆</span>Zug</button>
+                <button class="travel-method-button" data-method="Flugzeug" type="button"><span aria-hidden="true">✈️</span>Flug</button>
+                <button class="travel-method-button" data-method="Bus" type="button"><span aria-hidden="true">🚌</span>Bus</button>
+                <button class="travel-method-button" data-method="Fähre" type="button"><span aria-hidden="true">⛴️</span>Fähre</button>
+                <button class="travel-method-button" data-method="Wohnmobil" type="button"><span aria-hidden="true">🚐</span>Camper</button>
+              </span>
+            </label>
+            <label>
+              Aktivität
+              <span class="inline-add-field">
+                <input id="newTripActivityInput" placeholder="z. B. Wandern" />
+                <button id="addNewTripActivityButton" type="button">+</button>
+              </span>
+            </label>
+          </div>
+          <div class="activity-chip-list" id="newTripActivityList"></div>
+          <div class="smart-context-grid" aria-label="Packhilfe">
+            <label>
+              Unterkunft
+              <select id="newTripAccommodationInput">
+                <option value="">Noch offen</option>
+                <option value="Hotel">Hotel</option>
+                <option value="Ferienwohnung">Ferienwohnung</option>
+                <option value="Camping">Camping</option>
+                <option value="Hostel">Hostel</option>
+                <option value="Freunde">Bei Freunden</option>
+              </select>
+            </label>
+            <label>
+              Gepäck
+              <select id="newTripLuggageInput">
+                <option value="">Normal</option>
+                <option value="Handgepäck">Nur Handgepäck</option>
+                <option value="Koffer">Koffer</option>
+                <option value="Rucksack">Rucksack</option>
+              </select>
+            </label>
+            <label class="checkbox-line">
+              <input id="newTripInternationalInput" type="checkbox" />
+              <span>Ausland</span>
+            </label>
+            <label class="checkbox-line">
+              <input id="newTripChildrenInput" type="checkbox" />
+              <span>Kinder dabei</span>
+            </label>
+            <label class="checkbox-line">
+              <input id="newTripPetInput" type="checkbox" />
+              <span>Haustier dabei</span>
+            </label>
+          </div>
+          <label>
+            Packlisten-Vorlage
+            <select id="newTripTemplateSelect"></select>
+          </label>
+          <label>
+            Freunde
+            <span class="inline-add-field">
+              <input id="newTripFriendInput" placeholder="Name oder E-Mail" />
+              <button id="addNewTripFriendButton" type="button" aria-label="Freund hinzufügen">+</button>
+            </span>
+            <div class="activity-chip-list friend-chip-list trip-friend-picker" id="newTripFriendsList"></div>
+          </label>
+          <button class="primary-action" type="submit">Reise erstellen</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="manageTripDialog" role="dialog" aria-modal="true" aria-labelledby="manageTripDialogTitle" hidden>
+      <div class="auth-backdrop" id="manageTripBackdrop"></div>
+      <div class="auth-card manage-trip-dialog-card">
+        <button class="auth-close" id="closeManageTripButton" type="button" aria-label="Reise bearbeiten schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark" aria-hidden="true">HN</div>
+          <div>
+            <p class="eyebrow">Reise</p>
+            <h2 id="manageTripDialogTitle">Reise bearbeiten</h2>
+          </div>
+        </div>
+        <form class="auth-form" id="manageTripForm">
+          <label>
+            Icon
+            <select id="manageDialogTripIcon"></select>
+          </label>
+          <label>
+            Reise
+            <input id="manageDialogTripName" required />
+          </label>
+          <label>
+            Ort für Wetter
+            <input id="manageDialogTripDestination" placeholder="z. B. Stockholm, Schweden" autocomplete="address-level2" />
+          </label>
+          <div class="date-range manage-date-range trip-date-plan">
+            <label>
+              Anreise
+              <input id="manageDialogTripStart" type="date" />
+            </label>
+            <label>
+              Nächte
+            <input id="manageDialogTripDurationDays" type="number" min="1" inputmode="numeric" placeholder="Nächte" />
+            </label>
+            <div class="trip-duration" id="manageDialogTripDuration">Nächte eintragen</div>
+            <input id="manageDialogTripEnd" type="hidden" />
+          </div>
+          <p class="calculated-date" id="manageDialogTripEndPreview" hidden></p>
+          <div class="trip-extra-grid">
+            <label>
+              Anreise mit
+              <input id="manageDialogTripTravelMethod" type="hidden" />
+              <span class="travel-method-buttons" data-travel-scope="manage">
+                <button class="travel-method-button active" data-method="" type="button"><span aria-hidden="true"></span>Noch offen</button>
+                <button class="travel-method-button" data-method="Auto" type="button"><span aria-hidden="true">🚗</span>Auto</button>
+                <button class="travel-method-button" data-method="Zug" type="button"><span aria-hidden="true">🚆</span>Zug</button>
+                <button class="travel-method-button" data-method="Flugzeug" type="button"><span aria-hidden="true">✈️</span>Flug</button>
+                <button class="travel-method-button" data-method="Bus" type="button"><span aria-hidden="true">🚌</span>Bus</button>
+                <button class="travel-method-button" data-method="Fähre" type="button"><span aria-hidden="true">⛴️</span>Fähre</button>
+                <button class="travel-method-button" data-method="Wohnmobil" type="button"><span aria-hidden="true">🚐</span>Camper</button>
+              </span>
+            </label>
+            <label>
+              Aktivität
+              <span class="inline-add-field">
+                <input id="manageDialogTripActivityInput" placeholder="z. B. Wandern" />
+                <button id="addManageTripActivityButton" type="button">+</button>
+              </span>
+            </label>
+          </div>
+          <div class="activity-chip-list" id="manageDialogTripActivityList"></div>
+          <div class="smart-context-grid" aria-label="Packhilfe">
+            <label>
+              Unterkunft
+              <select id="manageDialogTripAccommodation">
+                <option value="">Noch offen</option>
+                <option value="Hotel">Hotel</option>
+                <option value="Ferienwohnung">Ferienwohnung</option>
+                <option value="Camping">Camping</option>
+                <option value="Hostel">Hostel</option>
+                <option value="Freunde">Bei Freunden</option>
+              </select>
+            </label>
+            <label>
+              Gepäck
+              <select id="manageDialogTripLuggage">
+                <option value="">Normal</option>
+                <option value="Handgepäck">Nur Handgepäck</option>
+                <option value="Koffer">Koffer</option>
+                <option value="Rucksack">Rucksack</option>
+              </select>
+            </label>
+            <label class="checkbox-line">
+              <input id="manageDialogTripInternational" type="checkbox" />
+              <span>Ausland</span>
+            </label>
+            <label class="checkbox-line">
+              <input id="manageDialogTripChildren" type="checkbox" />
+              <span>Kinder dabei</span>
+            </label>
+            <label class="checkbox-line">
+              <input id="manageDialogTripPet" type="checkbox" />
+              <span>Haustier dabei</span>
+            </label>
+          </div>
+          <label class="dialog-hidden-field">
+            Freunde
+            <span class="inline-add-field">
+              <input id="manageDialogTripFriendInput" placeholder="Name oder E-Mail" />
+              <button id="addManageTripFriendButton" type="button" aria-label="Freund hinzufügen">+</button>
+            </span>
+            <div class="activity-chip-list friend-chip-list trip-friend-picker" id="manageDialogTripFriendsList"></div>
+          </label>
+        </form>
+        <div class="manage-dialog-actions">
+          <button id="manageDialogOpenPackButton" type="button" hidden>Mitglieder verwalten</button>
+          <button id="manageDialogCompleteButton" type="button">Abschließen</button>
+          <button class="secondary-danger" id="manageDialogDeleteButton" type="button">Löschen</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="tripFriendsDialog" role="dialog" aria-modal="true" aria-labelledby="tripFriendsDialogTitle" hidden>
+      <div class="auth-backdrop" id="tripFriendsBackdrop"></div>
+      <div class="auth-card trip-friends-card">
+        <button class="auth-close" id="closeTripFriendsButton" type="button" aria-label="Freunde schließen">x</button>
+        <div class="auth-card-header">
+          <div>
+            <p class="eyebrow">Reise</p>
+            <h2 id="tripFriendsDialogTitle">Freunde</h2>
+          </div>
+        </div>
+        <label class="trip-friends-add">
+          Freund hinzufügen
+          <span class="inline-add-field">
+            <input id="tripFriendsInput" placeholder="Name oder E-Mail" />
+            <button id="addTripFriendsButton" type="button" aria-label="Freund hinzufügen">+</button>
+          </span>
+        </label>
+        <div class="activity-chip-list friend-chip-list trip-friend-picker trip-friends-picker" id="tripFriendsList"></div>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="itemDialog" role="dialog" aria-modal="true" aria-labelledby="itemDialogTitle" hidden>
+      <div class="auth-backdrop" id="itemDialogBackdrop"></div>
+      <div class="auth-card item-dialog-card">
+        <button class="auth-close" id="closeItemDialogButton" type="button" aria-label="Fenster schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark meal-dialog-mark" aria-hidden="true">HN</div>
+          <div>
+            <p class="eyebrow" id="itemDialogEyebrow">Packliste</p>
+            <h2 id="itemDialogTitle">Gegenstand hinzufügen</h2>
+          </div>
+        </div>
+        <form class="auth-form" id="itemDialogForm">
+          <label>
+            <span id="itemDialogNameLabel">Gegenstand</span>
+            <input id="itemDialogNameInput" required />
+          </label>
+          <label>
+            Menge
+            <input id="itemDialogQuantityInput" placeholder="z. B. 2 Stück" />
+          </label>
+          <label>
+            Kategorie
+            <select id="itemDialogCategorySelect"></select>
+            <span class="field-hint" id="itemCategoryHint"></span>
+          </label>
+          <label hidden>
+            Unterteilung
+            <input id="itemDialogGroupInput" list="itemGroupSuggestions" placeholder="z. B. Oberteile oder Unterteile" />
+            <datalist id="itemGroupSuggestions">
+              <option value="Oberteile"></option>
+              <option value="Unterteile"></option>
+              <option value="Schuhe"></option>
+              <option value="Accessoires"></option>
+              <option value="Allgemein"></option>
+            </datalist>
+            <div class="group-chip-row" data-target="itemDialogGroupInput" aria-label="Unterteilung schnell auswählen">
+              <button type="button" data-group="Allgemein">Allgemein</button>
+              <button type="button" data-group="Oberteile">Oberteile</button>
+              <button type="button" data-group="Unterteile">Unterteile</button>
+              <button type="button" data-group="Schuhe">Schuhe</button>
+            </div>
+          </label>
+          <label class="item-assignee-field">
+            Wer packt es ein
+            <select class="native-item-assignee-select" id="itemDialogAssigneeSelect" aria-label="Wer packt es ein"></select>
+            <div class="item-assignee-buttons" id="itemDialogAssigneeButtons" aria-label="Person auswählen"></div>
+          </label>
+          <div class="choice-grid">
+            <label class="choice-card">
+              <input id="itemShoppingInput" type="checkbox" />
+              <span>
+                <strong>Einkaufen</strong>
+                <small id="itemShoppingHint">Kommt zusätzlich auf die Einkaufsliste.</small>
+              </span>
+            </label>
+          </div>
+          <button class="primary-action" type="submit">Speichern und weiter</button>
+          <button class="template-from-item-button" id="useTemplateFromItemButton" type="button">Aus Vorlage übernehmen</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="mealDialog" role="dialog" aria-modal="true" aria-labelledby="mealDialogTitle" hidden>
+      <div class="auth-backdrop" id="mealDialogBackdrop"></div>
+      <div class="auth-card item-dialog-card">
+        <button class="auth-close" id="closeMealButton" type="button" aria-label="Gerichtfenster schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark" aria-hidden="true">+</div>
+          <div>
+            <p class="eyebrow">Essen</p>
+            <h2 id="mealDialogTitle">Gericht hinzufügen</h2>
+          </div>
+        </div>
+        <form class="auth-form" id="mealForm">
+          <div class="meal-template-dialog-panel old-meal-template-panel" hidden>
+            <div class="food-card-title">
+              <strong>Aus Vorlage</strong>
+              <span>Gericht suchen und Zutaten übernehmen</span>
+            </div>
+            <label>
+              Gericht suchen
+              <input id="mealDialogTemplateSearchInput" type="search" placeholder="z. B. Pasta, Frühstück..." />
+              <select id="mealDialogTemplateSelect" size="6" hidden></select>
+              <div class="meal-template-preview" id="mealDialogTemplatePreview" hidden></div>
+            </label>
+            <button id="useMealDialogTemplateButton" type="button">Vorlage übernehmen</button>
+          </div>
+          <label>
+            <span id="mealNameLabel">Gericht</span>
+            <input id="mealNameInput" required placeholder="Gericht eingeben oder Vorlage suchen" />
+            <select id="mealDialogTemplateSelectInline" size="6" hidden></select>
+            <div class="meal-template-preview" id="mealDialogTemplatePreviewInline" hidden></div>
+          </label>
+          <label id="snackQuantityField" hidden>
+            Menge in Stück
+            <input id="snackQuantityInput" type="number" min="0" step="1" placeholder="z. B. 2" />
+          </label>
+          <div class="meal-plan-grid meal-plan-grid-hidden" hidden>
+            <label>
+              Tag
+              <select id="mealDateSelect"></select>
+            </label>
+            <label>
+              Mahlzeit
+              <select id="mealSlotSelect">
+                <option value="breakfast">Frühstück</option>
+                <option value="lunch">Mittag</option>
+                <option value="dinner">Abendessen</option>
+              </select>
+            </label>
+          </div>
+          <div class="meal-dialog-context" id="mealDialogPlanContext" hidden></div>
+          <div class="meal-dialog-day-strip" id="mealDialogDayStrip"></div>
+          <div class="meal-dialog-slot-buttons" id="mealDialogSlotButtons" hidden></div>
+          <div class="meal-builder" id="mealBuilderPanel" hidden>
+            <div class="meal-builder-head">
+              <span>Zutaten</span>
+              <button id="addMealIngredientButton" type="button">Zutat hinzufügen</button>
+            </div>
+            <div class="meal-builder-list" id="mealIngredientList"></div>
+          </div>
+          <details class="snack-panel" id="snackPanel" hidden>
+            <summary>Snack hinzufügen</summary>
+          <div class="meal-template-dialog-panel snack-inner">
+            <div class="food-card-title">
+              <strong>Einzelne Zutat</strong>
+              <span>Ohne Gericht direkt auf die Einkaufsliste</span>
+            </div>
+            <label>
+              Snack
+              <input id="mealDialogFoodIngredientNameInput" placeholder="z. B. Reis" />
+            </label>
+            <label>
+              Menge
+              <span class="quantity-unit-field">
+                <input id="mealDialogFoodIngredientQuantityInput" type="number" min="0" step="1" placeholder="500" />
+                <select id="mealDialogFoodIngredientUnitSelect" aria-label="Einheit">
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="ml">ml</option>
+                  <option value="l">l</option>
+                  <option value="Stück">Stück</option>
+                </select>
+              </span>
+            </label>
+            <button id="addMealDialogFoodIngredientButton" type="button">Snack zur Einkaufsliste</button>
+          </div>
+          </details>
+          <button class="primary-action" id="mealSaveButton" type="submit">Gericht hinzufügen</button>
+          <div class="meal-dialog-actions" id="mealDialogActions" hidden>
+            <button class="secondary-danger" id="deleteMealDialogButton" type="button">Gericht löschen</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="mealIngredientDialog" role="dialog" aria-modal="true" aria-labelledby="mealIngredientDialogTitle" hidden>
+      <div class="auth-backdrop" id="mealIngredientBackdrop"></div>
+      <div class="auth-card item-dialog-card">
+        <button class="auth-close" id="closeMealIngredientButton" type="button" aria-label="Zutatenfenster schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark" aria-hidden="true">+</div>
+          <div>
+            <p class="eyebrow">Essen</p>
+            <h2 id="mealIngredientDialogTitle">Zutat hinzufügen</h2>
+          </div>
+        </div>
+        <form class="auth-form" id="mealIngredientForm">
+          <label>
+            Zutat
+            <input id="mealIngredientNameInput" required placeholder="z. B. Nudeln" />
+            <select id="mealIngredientSuggestionSelect" size="6" hidden></select>
+          </label>
+          <label>
+            Menge
+            <span class="quantity-unit-field">
+              <input id="mealIngredientQuantityInput" type="number" min="0" step="1" placeholder="500" />
+              <select id="mealIngredientUnitSelect" aria-label="Einheit">
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="l">l</option>
+                <option value="Stück">Stück</option>
+              </select>
+            </span>
+          </label>
+          <button class="primary-action" type="submit">Zutat speichern</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="trip-dialog" id="itemSettingsDialog" role="dialog" aria-modal="true" aria-labelledby="itemSettingsTitle" hidden>
+      <div class="auth-backdrop" id="itemSettingsBackdrop"></div>
+      <div class="auth-card item-dialog-card">
+        <button class="auth-close" id="closeItemSettingsButton" type="button" aria-label="Einstellungen schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark" aria-hidden="true">HN</div>
+          <div>
+            <p class="eyebrow">Gegenstand</p>
+            <h2 id="itemSettingsTitle">Einstellungen</h2>
+          </div>
+        </div>
+        <form class="auth-form" id="itemSettingsForm">
+          <label>
+            Name
+            <input id="settingsItemNameInput" required />
+          </label>
+          <label>
+            Menge
+            <input id="settingsItemQuantityInput" placeholder="z. B. 2 Stück" />
+          </label>
+          <label hidden>
+            Unterteilung
+            <input id="settingsItemGroupInput" list="itemGroupSuggestions" placeholder="z. B. Oberteile oder Unterteile" />
+            <div class="group-chip-row" data-target="settingsItemGroupInput" aria-label="Unterteilung schnell auswählen">
+              <button type="button" data-group="Allgemein">Allgemein</button>
+              <button type="button" data-group="Oberteile">Oberteile</button>
+              <button type="button" data-group="Unterteile">Unterteile</button>
+              <button type="button" data-group="Schuhe">Schuhe</button>
+            </div>
+          </label>
+          <label>
+            Kategorie
+            <select id="settingsItemCategorySelect"></select>
+          </label>
+          <label>
+            Wer
+            <select id="settingsItemAssigneeSelect"></select>
+          </label>
+          <button class="primary-action" type="submit">Speichern</button>
+          <button class="secondary-danger" id="deleteItemSettingsButton" type="button">Gegenstand löschen</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="auth-dialog" id="authDialog" role="dialog" aria-modal="true" aria-labelledby="authDialogTitle" hidden>
+      <div class="auth-backdrop" id="authBackdrop"></div>
+      <div class="auth-card login-card">
+        <button class="auth-close" id="closeAuthButton" type="button" aria-label="Anmeldefenster schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark login-brand-mark" aria-hidden="true">HN</div>
+          <div>
+            <p class="eyebrow">Holiday Notes</p>
+            <h2 id="authDialogTitle">Einloggen</h2>
+          </div>
+        </div>
+        <p class="muted">
+          Melde dich an, um deine Packlisten zu speichern und mit anderen zu teilen.
+        </p>
+        <p class="auth-message" id="authMessage" role="status" hidden></p>
+        <form class="auth-form" id="authForm">
+          <label id="authDisplayNameField" hidden>
+            Anzeigename
+            <input id="authDisplayNameInput" type="text" autocomplete="name" placeholder="z. B. Max" />
+            <span class="field-hint">Wird beim Erstellen eines neuen Kontos für Teamlisten genutzt.</span>
+          </label>
+          <label id="authEmailField">
+            E-Mail
+            <input id="authEmailInput" type="email" autocomplete="email" placeholder="name@example.com" required />
+          </label>
+          <label>
+            Passwort
+            <span class="password-field">
+              <input id="authPasswordInput" type="password" autocomplete="current-password" placeholder="Mindestens 6 Zeichen" required minlength="6" />
+              <button id="togglePasswordButton" type="button" aria-label="Passwort anzeigen" title="Passwort anzeigen">
+                <svg class="password-eye password-eye-open" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M2.1 12s3.6-6 9.9-6 9.9 6 9.9 6-3.6 6-9.9 6-9.9-6-9.9-6Z"></path>
+                  <circle cx="12" cy="12" r="2.75"></circle>
+                </svg>
+                <svg class="password-eye password-eye-closed" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M3 3l18 18"></path>
+                  <path d="M10.6 5.2A10.7 10.7 0 0 1 12 5c6.3 0 9.9 7 9.9 7a16.8 16.8 0 0 1-2.3 3.1"></path>
+                  <path d="M6.2 6.2C3.5 8.1 2.1 12 2.1 12s3.6 7 9.9 7a9.8 9.8 0 0 0 4.1-.9"></path>
+                </svg>
+              </button>
+            </span>
+          </label>
+          <label id="authPasswordConfirmField" hidden>
+            Passwort wiederholen
+            <span class="password-field">
+              <input id="authPasswordConfirmInput" type="password" autocomplete="new-password" placeholder="Passwort wiederholen" minlength="6" />
+            </span>
+          </label>
+          <div class="auth-action-row">
+            <button class="primary-action" id="loginButton" type="submit">Einloggen</button>
+          </div>
+          <div class="auth-link-row">
+            <button class="text-button" id="resetPasswordButton" type="button">Passwort vergessen</button>
+            <button class="text-button" id="signupButton" type="button">Neues Konto</button>
+            <button class="text-button" id="backToLoginButton" type="button" hidden>Zurück zum Einloggen</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="trip-dialog account-settings-dialog" id="accountSettingsDialog" role="dialog" aria-modal="true" aria-labelledby="accountSettingsTitle" hidden>
+      <div class="auth-backdrop" id="accountSettingsBackdrop"></div>
+      <div class="auth-card account-settings-card">
+        <button class="auth-close" id="closeAccountSettingsButton" type="button" aria-label="Einstellungen schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark login-brand-mark" aria-hidden="true">HN</div>
+          <div>
+            <p class="eyebrow">Konto</p>
+            <h2 id="accountSettingsTitle">Einstellungen</h2>
+          </div>
+        </div>
+        <p class="muted">Bearbeite dein Profil, deine Anmeldung und die Cloud an einem Ort.</p>
+        <div class="account-settings-grid" id="accountSettingsMount"></div>
+      </div>
+    </section>
+
+    <template id="itemTemplate">
+      <article class="item-row">
+        <div class="item-row-head">
+          <button class="item-toggle" type="button" aria-expanded="false">
+            <span>
+              <strong class="item-name"></strong>
+              <span class="item-details"></span>
+            </span>
+          </button>
+          <button class="pack-button" type="button">Eingepackt</button>
+        </div>
+        <div class="item-controls" hidden>
+          <div class="item-control-actions">
+            <button class="buy-button" type="button">Einkaufsliste</button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="./public/vendor/supabase.js"></script>
+    <script>
+      if (!window.supabase && typeof supabase !== "undefined") {
+        window.supabase = supabase;
+      }
+    </script>
+    <script>
+      if (!window.supabase) {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
+      }
+    </script>
+    <script>
+      if (!window.supabase) {
+        document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+      }
+    </script>
+    <script src="./config/supabase-config.js"></script>
+    <script src="./src/app.js?v=101"></script>
+  </body>
+</html>

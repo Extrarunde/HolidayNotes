@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1f7a63" />
+    <title>Holiday Notes offline</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #17231d;
+        background: #f6f7f4;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+
+      main {
+        width: min(440px, 100%);
+        background: #ffffff;
+        border: 1px solid #dfe6e1;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 24px 80px rgba(18, 28, 23, 0.16);
+      }
+
+      .mark {
+        width: 52px;
+        height: 52px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: #1f7a63;
+        color: white;
+        font-weight: 900;
+      }
+
+      h1 {
+        margin: 18px 0 8px;
+        font-size: 1.6rem;
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: #657269;
+        line-height: 1.5;
+      }
+
+      a {
+        display: inline-grid;
+        place-items: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border-radius: 8px;
+        background: #1f7a63;
+        color: #ffffff;
+        font-weight: 800;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">HN</div>
+      <h1>Du bist offline</h1>
+      <p>Holiday Notes kann bereits gespeicherte Daten lokal öffnen. Für Login, Cloud-Sync und Einladungen brauchst du wieder Internet.</p>
+      <a href="./">App erneut öffnen</a>
+    </main>
+  </body>
+</html>
