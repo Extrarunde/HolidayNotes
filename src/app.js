@@ -50,6 +50,7 @@ let appStatusToastTimer = null;
 const storedThemeMode = localStorage.getItem(themeKey);
 let themeMode = ["light", "dark"].includes(storedThemeMode) ? storedThemeMode : "light";
 let deferredInstallPrompt = null;
+const cloudRequestTimeoutMs = 12000;
 
 function resolvedTheme(mode = themeMode) {
   return mode === "dark" ? "dark" : "light";
@@ -131,6 +132,15 @@ function authUnavailableMessage() {
     return "Anmeldung ist gerade nicht verfügbar. Die Auth-Bibliothek konnte nicht geladen werden. Bitte Seite neu laden.";
   }
   return "Anmeldung ist gerade nicht verfügbar. Bitte Seite neu laden und Verbindung prüfen.";
+}
+
+function withTimeout(promise, message = "Die Anfrage dauert zu lange. Bitte prüfe deine Verbindung und versuche es erneut.", timeoutMs = cloudRequestTimeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    })
+  ]);
 }
 
 if ("serviceWorker" in navigator) {
@@ -2077,7 +2087,10 @@ async function syncAccountFriendsToProfile() {
 
 async function loadFriendAccountsFromCloud() {
   if (!supabaseClient || !currentUser || !navigator.onLine) return false;
-  const { data, error } = await supabaseClient.rpc("list_my_friends");
+  const { data, error } = await withTimeout(
+    supabaseClient.rpc("list_my_friends"),
+    "Freunde konnten gerade nicht geladen werden. Du bist trotzdem angemeldet."
+  );
   if (error) {
     if (!isMissingCloudFieldError(error) && error.code !== "PGRST202") {
       console.warn("Verknüpfte Freunde konnten nicht geladen werden.", error);
@@ -4817,7 +4830,10 @@ async function loadCurrentProfile() {
     return;
   }
 
-  const { data, error } = await supabaseClient.from("profiles").select("*").eq("id", currentUser.id).maybeSingle();
+  const { data, error } = await withTimeout(
+    supabaseClient.from("profiles").select("*").eq("id", currentUser.id).maybeSingle(),
+    "Profil konnte gerade nicht geladen werden. Du bist trotzdem angemeldet."
+  );
   if (error) {
     currentProfile = {
       id: currentUser.id,
@@ -5229,16 +5245,25 @@ async function loadStateFromCloud(successMessage = "Daten geladen.") {
     smartContext: normalizeSmartContext(trip.smartContext)
   }]));
 
-  const { data: trips, error: tripsError } = await supabaseClient.from("trips").select("*").order("created_at", { ascending: true });
+  const { data: trips, error: tripsError } = await withTimeout(
+    supabaseClient.from("trips").select("*").order("created_at", { ascending: true }),
+    "Reisen konnten gerade nicht geladen werden."
+  );
   if (tripsError) throwCloudError(tripsError);
 
-  const { data: globalItems, error: globalError } = await supabaseClient.from("global_items").select("*").order("created_at", { ascending: true });
+  const { data: globalItems, error: globalError } = await withTimeout(
+    supabaseClient.from("global_items").select("*").order("created_at", { ascending: true }),
+    "Vorlagen konnten gerade nicht geladen werden."
+  );
   if (globalError) throwCloudError(globalError);
 
-  const { data: cloudMealTemplates, error: mealTemplateError } = await supabaseClient
-    .from("meal_templates")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data: cloudMealTemplates, error: mealTemplateError } = await withTimeout(
+    supabaseClient
+      .from("meal_templates")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    "Gerichte-Vorlagen konnten gerade nicht geladen werden."
+  );
   if (mealTemplateError && !isMissingCloudFieldError(mealTemplateError)) throwCloudError(mealTemplateError);
 
   if (!trips.length) {
@@ -5248,18 +5273,30 @@ async function loadStateFromCloud(successMessage = "Daten geladen.") {
   }
 
   const tripIds = trips.map((trip) => trip.id);
-  const { data: tripItems, error: itemsError } = await supabaseClient.from("trip_items").select("*").in("trip_id", tripIds).order("created_at", { ascending: true });
+  const { data: tripItems, error: itemsError } = await withTimeout(
+    supabaseClient.from("trip_items").select("*").in("trip_id", tripIds).order("created_at", { ascending: true }),
+    "Packlisten konnten gerade nicht geladen werden."
+  );
   if (itemsError) throwCloudError(itemsError);
 
-  const { data: activity, error: activityError } = await supabaseClient.from("activity").select("*").in("trip_id", tripIds).order("created_at", { ascending: false });
+  const { data: activity, error: activityError } = await withTimeout(
+    supabaseClient.from("activity").select("*").in("trip_id", tripIds).order("created_at", { ascending: false }),
+    "Aktivitäten konnten gerade nicht geladen werden."
+  );
   if (activityError) throwCloudError(activityError);
 
-  const { data: members, error: membersError } = await supabaseClient.from("trip_members").select("*").in("trip_id", tripIds);
+  const { data: members, error: membersError } = await withTimeout(
+    supabaseClient.from("trip_members").select("*").in("trip_id", tripIds),
+    "Mitreisende konnten gerade nicht geladen werden."
+  );
   if (membersError) throwCloudError(membersError);
 
   const memberUserIds = Array.from(new Set(members.map((member) => member.user_id)));
   const { data: profiles, error: profilesError } = memberUserIds.length ?
-     await supabaseClient.from("profiles").select("*").in("id", memberUserIds)
+     await withTimeout(
+       supabaseClient.from("profiles").select("*").in("id", memberUserIds),
+       "Profile konnten gerade nicht geladen werden."
+     )
     : { data: [], error: null };
   if (profilesError) throwCloudError(profilesError);
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
@@ -6014,29 +6051,45 @@ els.authForm.addEventListener("submit", async (event) => {
   }
   setAuthMessage("Login läuft...");
   setCloudStatus("Login läuft...", "local");
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) {
-    const message = friendlyAuthError(error);
+  els.loginButton.disabled = true;
+  els.loginButton.textContent = "Einloggen...";
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient.auth.signInWithPassword({ email, password }),
+      "Login dauert zu lange. Bitte prüfe deine Verbindung und versuche es erneut."
+    );
+    if (error) {
+      const message = friendlyAuthError(error);
+      setAuthMessage(message, "error");
+      setCloudStatus(message, "error");
+      return;
+    }
+    currentUser = data.session?.user || data.user || null;
+    els.authPasswordInput.value = "";
+    setAuthMessage("Login erfolgreich.", "success");
+    if (currentUser) {
+      cloudSyncEnabled = true;
+      subscribeToCloudChanges();
+    }
+    updateAuthView();
+    closeAuthDialog();
+    if (currentUser) {
+      loadCurrentProfile()
+        .then(() => loadStateFromCloud("Login erfolgreich. Deine gespeicherten Listen wurden geladen."))
+        .catch((loadError) => {
+          console.error(loadError);
+          cloudIsLoading = false;
+          setCloudStatus(friendlyCloudError(loadError, "Login erfolgreich. Cloud-Daten konnten gerade nicht geladen werden."), "error");
+        });
+    }
+  } catch (loginError) {
+    const message = friendlyAuthError(loginError);
     setAuthMessage(message, "error");
     setCloudStatus(message, "error");
-    return;
+  } finally {
+    els.loginButton.disabled = false;
+    els.loginButton.textContent = "Einloggen";
   }
-  currentUser = data.session?.user || data.user || null;
-  if (currentUser) {
-    await loadCurrentProfile();
-    cloudSyncEnabled = true;
-    subscribeToCloudChanges();
-    try {
-      await loadStateFromCloud("Login erfolgreich. Deine gespeicherten Listen wurden geladen.");
-    } catch (loadError) {
-      console.error(loadError);
-      setCloudStatus(friendlyCloudError(loadError, "Login erfolgreich. Cloud-Daten konnten gerade nicht geladen werden."), "error");
-    }
-  }
-  els.authPasswordInput.value = "";
-  setAuthMessage("Login erfolgreich.", "success");
-  updateAuthView();
-  closeAuthDialog();
 });
 
 els.signupButton.addEventListener("click", async () => {
