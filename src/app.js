@@ -758,16 +758,23 @@ function isStandaloneApp() {
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
 }
 
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
 function updateInstallAppControl() {
   if (!els.installAppButton || !els.installAppHint) return;
   const installed = isStandaloneApp();
-  els.installAppButton.hidden = installed || !deferredInstallPrompt;
+  els.installAppButton.hidden = installed;
+  els.installAppButton.textContent = deferredInstallPrompt ? "App installieren" : "Installationshilfe";
   if (installed) {
     els.installAppHint.textContent = "Die App ist auf diesem Gerät installiert.";
   } else if (deferredInstallPrompt) {
     els.installAppHint.textContent = "Installiere Holiday Notes für einen schnelleren Start vom Home-Bildschirm.";
+  } else if (isIosDevice()) {
+    els.installAppHint.textContent = "iPhone: Safari öffnen, Teilen antippen und „Zum Home-Bildschirm“ wählen.";
   } else {
-    els.installAppHint.textContent = "Auf dem iPhone kannst du die App über Teilen und „Zum Home-Bildschirm“ installieren.";
+    els.installAppHint.textContent = "Öffne die App im Browser-Menü und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.";
   }
 }
 
@@ -860,7 +867,7 @@ function setFoodMode(mode) {
 function updateFoodModeUi() {
   if (els.foodMealsPanel) els.foodMealsPanel.hidden = false;
   if (els.foodShoppingPanel) els.foodShoppingPanel.hidden = true;
-  if (els.createMealButton) els.createMealButton.hidden = !canEditLists();
+  if (els.createMealButton) els.createMealButton.hidden = !canEditActiveTrip();
   if (els.foodShoppingButton) els.foodShoppingButton.hidden = true;
   els.foodModeButtons.forEach((button) => {
     const active = button.dataset.foodMode === "meals";
@@ -897,7 +904,7 @@ function setShoppingStatus(status) {
 }
 
 function addMealIngredientToShoppingList(mealId, ingredientIndex) {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const trip = activeTrip();
   const meal = (trip.meals || []).find((entry) => entry.id === mealId);
   const ingredient = meal?.ingredients?.[ingredientIndex];
@@ -1313,6 +1320,14 @@ function canEditLists() {
   return Boolean(currentUser || hasCachedAuthSession());
 }
 
+function hasEditableActiveTrip() {
+  return !isPlaceholderTrip(activeTrip());
+}
+
+function canEditActiveTrip() {
+  return canEditLists() && hasEditableActiveTrip();
+}
+
 function requireSignedInForEdit() {
   if (canEditLists()) return true;
   setCloudStatus("Bitte melde dich an, um Änderungen zu speichern.", "local");
@@ -1320,12 +1335,20 @@ function requireSignedInForEdit() {
   return false;
 }
 
+function requireEditableActiveTrip() {
+  if (!requireSignedInForEdit()) return false;
+  if (hasEditableActiveTrip()) return true;
+  setCloudStatus("Lege zuerst eine Reise an, bevor du Einträge hinzufügen kannst.", "local");
+  activateView("manage");
+  openNewTripDialog();
+  return false;
+}
+
 function updateEditAvailability() {
-  const editable = canEditLists();
+  const signedIn = canEditLists();
+  const editable = canEditActiveTrip();
+  document.body.classList.toggle("has-no-active-trip", !hasEditableActiveTrip());
   [
-    els.quickAddItemButton,
-    els.quickAddShoppingButton,
-    els.createMealButton,
     els.completeShoppingButton,
     els.foodCompleteShoppingButton,
     els.newTripFromPickerButton,
@@ -1337,7 +1360,15 @@ function updateEditAvailability() {
     els.leaveTripButton,
     els.importInput
   ].filter(Boolean).forEach((button) => {
+    button.disabled = !signedIn;
+  });
+  [
+    els.quickAddItemButton,
+    els.quickAddShoppingButton,
+    els.createMealButton
+  ].filter(Boolean).forEach((button) => {
     button.disabled = !editable;
+    button.hidden = !editable;
   });
   if (els.quickAddItemButton) els.quickAddItemButton.hidden = !editable;
   if (els.quickAddShoppingButton) els.quickAddShoppingButton.hidden = !editable;
@@ -1345,7 +1376,7 @@ function updateEditAvailability() {
 }
 
 function openItemDialog(name = "", defaults = {}) {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   pendingTripItemName = name.trim();
   const isFoodContext = defaults.mode === "food" || defaults.category === "Nahrung" || defaults.group === "Lebensmittel";
   if (els.itemDialogEyebrow) els.itemDialogEyebrow.textContent = isFoodContext ? "Essen" : "Packliste";
@@ -1419,7 +1450,7 @@ function closeItemDialog() {
 }
 
 function saveItemFromDialog() {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const name = els.itemDialogNameInput.value.trim();
   if (!name) return;
   const category = els.itemDialogCategorySelect.value;
@@ -1692,6 +1723,7 @@ function render() {
   const trip = activeTrip();
   state.activeTripId = trip.id;
   state.friends = normalizeFriendList(state.friends || []);
+  updateEditAvailability();
   renderViewTripNames(trip);
   renderCategoryFilter();
   renderTrips(trip);
@@ -2546,7 +2578,7 @@ function updatePackSliderStatus() {
 
 function createItemRow(item, trip) {
   const row = els.itemTemplate.content.firstElementChild.cloneNode(true);
-  const editable = canEditLists();
+  const editable = canEditActiveTrip();
   row.classList.toggle("read-only", !editable);
   row.classList.toggle("packed", item.packed);
   decorateAssigneeRow(row, item);
@@ -3284,7 +3316,7 @@ function countMissingTemplates(trip) {
 }
 
 function addMissingTemplatesToTrip() {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const trip = activeTrip();
   const existingNames = new Set(trip.items.map((item) => item.name.trim().toLowerCase()));
   const missingTemplates = state.globalItems.filter((item) => !existingNames.has(item.name.trim().toLowerCase()));
@@ -3323,6 +3355,16 @@ function addVacationTypeTemplates() {
 }
 
 function renderShoppingItems(trip) {
+  const placeholder = isPlaceholderTrip(trip);
+  if (placeholder) {
+    renderShoppingList(els.shoppingItems, []);
+    renderShoppingList(els.foodShoppingItems, []);
+    [els.completeShoppingButton, els.foodCompleteShoppingButton].forEach((button) => {
+      if (button) button.hidden = true;
+    });
+    updateShoppingModeUi();
+    return;
+  }
   const items = trip.items.filter((item) => item.shopping);
   const query = (els.shoppingSearchInput?.value || "").trim().toLowerCase();
   const visibleItems = items.filter((item) => {
@@ -3378,6 +3420,10 @@ function renderMealsCompact(trip) {
   updateMealKindUi();
   const isSnackView = mealKind === "snack";
   if (els.mealListTitle) els.mealListTitle.textContent = isSnackView ? "Snacks" : "Gerichte";
+  if (isPlaceholderTrip(trip)) {
+    els.mealList.innerHTML = `<div class="empty-state">Lege zuerst eine Reise an, dann kannst du ${isSnackView ? "Snacks" : "Gerichte"} hinzufügen.</div>`;
+    return;
+  }
   const meals = (trip.meals || []).filter((meal) => (isSnackView ? meal.type === "snack" : meal.type !== "snack"));
   if (!meals.length) {
     els.mealList.innerHTML = `<div class="empty-state">Noch kein ${isSnackView ? "Snack" : "Gericht"} angelegt. Lege ${isSnackView ? "einen Snack" : "ein Gericht"} über das Plus an.</div>`;
@@ -4184,7 +4230,7 @@ function scheduleMealDialogAutosave() {
 }
 
 function openMealDialog(meal = null, defaults = {}) {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   editingMealId = meal?.id || null;
   currentMealDialogKind = meal?.type === "snack" || defaults.type === "snack" ? "snack" : "meal";
   const kindLabel = currentMealDialogKind === "snack" ? "Snack" : "Gericht";
@@ -4248,7 +4294,7 @@ function updateMealFromDialog(name, ingredients, options = {}) {
 }
 
 function openMealIngredientDialog(ingredientId = null) {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   editingMealIngredientId = ingredientId;
   const ingredient = pendingMealIngredients.find((entry) => entry.id === ingredientId);
   els.mealIngredientDialog.hidden = false;
@@ -4328,7 +4374,7 @@ function useIngredientSuggestion() {
 }
 
 function addPendingMealIngredientFromDialog() {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const name = els.mealIngredientNameInput.value.trim();
   if (!name) return;
   const nextIngredient = {
@@ -4349,7 +4395,7 @@ function addPendingMealIngredientFromDialog() {
 }
 
 function removePendingMealIngredient(id) {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   pendingMealIngredients = pendingMealIngredients.filter((ingredient) => ingredient.id !== id);
   renderPendingMealIngredients();
   scheduleMealDialogAutosave();
@@ -4379,7 +4425,7 @@ function renderPendingMealIngredients() {
 }
 
 function addMealToTrip(mealInput, options = {}) {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const trip = activeTrip();
   trip.meals ||= [];
   const shouldSaveTemplate = options.saveTemplate !== false && mealInput.type !== "snack";
@@ -4401,7 +4447,7 @@ function addMealToTrip(mealInput, options = {}) {
 }
 
 function addFoodIngredientFromForm() {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const name = els.foodIngredientNameInput.value.trim();
   if (!name) return;
   const trip = activeTrip();
@@ -4417,7 +4463,7 @@ function addFoodIngredientFromForm() {
 }
 
 function addFoodIngredientFromMealDialog() {
-  if (!requireSignedInForEdit()) return;
+  if (!requireEditableActiveTrip()) return;
   const name = els.mealDialogFoodIngredientNameInput.value.trim();
   if (!name) return;
   const trip = activeTrip();
@@ -5000,6 +5046,10 @@ async function sendProfilePasswordReset() {
 async function installApp() {
   if (!deferredInstallPrompt) {
     updateInstallAppControl();
+    const message = isIosDevice()
+      ? "Auf dem iPhone: Safari öffnen, Teilen antippen und „Zum Home-Bildschirm“ wählen."
+      : "Öffne das Browser-Menü und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“. Falls der Punkt fehlt, lade die Seite neu.";
+    setCloudStatus(message, "local");
     return;
   }
   await deferredInstallPrompt.prompt();
