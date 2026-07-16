@@ -5135,6 +5135,37 @@ details[open] > .list-group-summary::after {
   box-shadow: 0 6px 18px rgba(20, 77, 58, 0.06);
 }
 
+.trip-team-panel {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.trip-team-mini-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.trip-team-mini-stats span {
+  display: inline-grid;
+  min-width: 92px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #d8e8e0;
+  border-radius: 8px;
+  background: #f4faf7;
+  color: #52665d;
+  font-size: 0.76rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.trip-team-mini-stats strong {
+  color: var(--accent-strong);
+  font-size: 1.02rem;
+}
+
 .trip-overview-invite > div {
   min-width: 0;
 }
@@ -5493,12 +5524,30 @@ textarea:focus {
   font-weight: 900;
 }
 
+.trip-friends-add .field-hint {
+  color: #66786f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .trip-friends-picker {
   margin-top: 12px;
   padding: 10px;
   border: 1px solid #d5e5dd;
   border-radius: 10px;
   background: #f8fbf9;
+}
+
+.trip-friends-picker .empty-inline {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed #c7ddd3;
+  border-radius: 8px;
+  background: #fff;
+  color: #66786f;
+  font-weight: 800;
 }
 
 .trip-picker-actions .primary-action {
@@ -6117,8 +6166,18 @@ textarea:focus {
   }
 
   .trip-overview-main,
-  .trip-overview-invite {
+  .trip-overview-invite,
+  .trip-team-panel {
     grid-template-columns: 1fr;
+  }
+
+  .trip-team-mini-stats {
+    justify-content: stretch;
+  }
+
+  .trip-team-mini-stats span {
+    min-width: 0;
+    width: 100%;
   }
 
   .trip-code-button {

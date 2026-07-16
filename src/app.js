@@ -2139,6 +2139,10 @@ async function addFriendToAccount(value) {
   if (!requireSignedInForEdit()) return false;
   const friend = normalizeFriendName(value);
   if (!friend) return false;
+  if (isOwnPersonName(friend) || friend.toLowerCase() === String(currentUser?.email || "").trim().toLowerCase()) {
+    setCloudStatus("Dich selbst musst du nicht als Freund hinzufügen.", "error");
+    return false;
+  }
   if (friend.includes("@") && supabaseClient && currentUser && navigator.onLine) {
     let data;
     let error;
@@ -2183,6 +2187,7 @@ async function addFriendToAccount(value) {
     commit();
     syncAccountFriendsToProfile().catch((error) => console.warn("Freundeliste konnte nicht synchronisiert werden.", error));
   } else {
+    setCloudStatus(`${friend} ist schon in deiner Freundesliste.`, currentUser ? "online" : "local");
     renderAccountFriends();
   }
   return friend;
@@ -2255,7 +2260,7 @@ function renderTripFriendPicker(container, selected = []) {
   const selectedKeys = new Set((selected || []).map((friend) => normalizeFriendName(displayAssignee(friend)).toLowerCase()));
   const selectedIds = new Set(container.dataset.selectedFriendIds?.split(",").filter(Boolean) || []);
   if (!options.length) {
-    container.innerHTML = `<span class="empty-inline">Name oder E-Mail oben eingeben und mit + hinzufügen.</span>`;
+    container.innerHTML = `<span class="empty-inline">Noch keine Freunde gespeichert. Gib oben einen Namen oder eine E-Mail ein.</span>`;
     return;
   }
   container.innerHTML = options
@@ -2896,11 +2901,15 @@ function renderTripOverview(trip) {
     <div class="trip-overview-progress" aria-label="Packfortschritt ${progressValue}%">
       <span style="width:${progressValue}%"></span>
     </div>
-    <div class="trip-overview-invite">
+    <div class="trip-overview-invite trip-team-panel">
       <div>
-        <p class="eyebrow">Freunde</p>
-        <strong>${friends.length ? `${friends.length} ${friends.length === 1 ? "Freund" : "Freunde"}` : "Keine Freunde"}</strong>
+        <p class="eyebrow">Team</p>
+        <strong>${friends.length ? `${friends.length} ${friends.length === 1 ? "Freund dabei" : "Freunde dabei"}` : "Alleine packen"}</strong>
         <span>${escapeHtml(friendText)}</span>
+      </div>
+      <div class="trip-team-mini-stats" aria-label="Teamübersicht">
+        <span><strong>${peopleForAssignment(trip).length}</strong> Personen</span>
+        <span><strong>${friendOptions().length}</strong> gespeichert</span>
       </div>
       <button class="trip-code-button" id="overviewFriendsButton" type="button" ${editable ? "" : "disabled"}>${placeholder ? "Erst Reise anlegen" : "Freunde bearbeiten"}</button>
     </div>
@@ -6291,7 +6300,8 @@ if (els.addAccountFriendButton) {
     try {
       if (!(await addFriendToAccount(els.accountFriendNameInput.value))) return;
       els.accountFriendNameInput.value = "";
-      closeAccountSettings();
+      renderAccountFriends();
+      els.accountFriendNameInput.focus();
     } finally {
       els.addAccountFriendButton.disabled = false;
       els.addAccountFriendButton.removeAttribute("aria-busy");
@@ -6351,7 +6361,11 @@ async function addFriendFromTripFriendsDialog() {
   if (!addedName) return;
   const selected = normalizeFriendList([...selectedFriendsFromPicker(els.tripFriendsList), addedName]);
   renderTripFriendPicker(els.tripFriendsList, selected);
-  saveTripFriendsDialog({ close: true });
+  if (els.tripFriendsInput) {
+    els.tripFriendsInput.value = "";
+    els.tripFriendsInput.focus();
+  }
+  saveTripFriendsDialog({ close: false });
 }
 
 els.newTripFriendsList?.addEventListener("click", handleTripFriendPickerClick(els.newTripFriendsList));
