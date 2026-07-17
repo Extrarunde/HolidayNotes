@@ -11,7 +11,7 @@
     <link rel="manifest" href="./public/manifest.webmanifest" />
     <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./src/styles.css?v=106" />
+    <link rel="stylesheet" href="./src/styles.css?v=107" />
   </head>
   <body>
     <main class="app-shell">
@@ -641,14 +641,11 @@
             Packlisten-Vorlage
             <select id="newTripTemplateSelect"></select>
           </label>
-          <label>
-            Freunde
-            <span class="inline-add-field">
-              <input id="newTripFriendInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
-              <button id="addNewTripFriendButton" type="button" aria-label="Freund hinzufügen">+</button>
-            </span>
+          <section class="trip-friend-selection">
+            <span>Freunde für diese Reise</span>
+            <p>Wähle aus deinen bereits bestätigten Freunden.</p>
             <div class="activity-chip-list friend-chip-list trip-friend-picker" id="newTripFriendsList"></div>
-          </label>
+          </section>
           <button class="primary-action" type="submit">Reise erstellen</button>
         </form>
       </div>
@@ -748,14 +745,7 @@
               <span>Haustier dabei</span>
             </label>
           </div>
-          <label class="dialog-hidden-field">
-            Freunde
-            <span class="inline-add-field">
-              <input id="manageDialogTripFriendInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
-              <button id="addManageTripFriendButton" type="button" aria-label="Freund hinzufügen">+</button>
-            </span>
-            <div class="activity-chip-list friend-chip-list trip-friend-picker" id="manageDialogTripFriendsList"></div>
-          </label>
+          <div class="dialog-hidden-field" id="manageDialogTripFriendsList"></div>
         </form>
         <div class="manage-dialog-actions">
           <button id="manageDialogOpenPackButton" type="button" hidden>Mitglieder verwalten</button>
@@ -772,17 +762,10 @@
         <div class="auth-card-header">
           <div>
             <p class="eyebrow">Reise</p>
-            <h2 id="tripFriendsDialogTitle">Freunde</h2>
+            <h2 id="tripFriendsDialogTitle">Freunde auswählen</h2>
           </div>
         </div>
-        <label class="trip-friends-add">
-          Freund hinzufügen
-          <span class="inline-add-field">
-            <input id="tripFriendsInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
-            <button id="addTripFriendsButton" type="button" aria-label="Freund hinzufügen">+</button>
-          </span>
-          <span class="field-hint">Freunde erscheinen hier, sobald sie deine Anfrage angenommen haben.</span>
-        </label>
+        <p class="trip-friends-help">Hier siehst du alle bestätigten Freunde. Freundschaftsanfragen verwaltest du in den Konto-Einstellungen.</p>
         <p class="friend-feedback" id="tripFriendFeedback" role="status" hidden></p>
         <div class="activity-chip-list friend-chip-list trip-friend-picker trip-friends-picker" id="tripFriendsList"></div>
       </div>
@@ -1017,8 +1000,10 @@
             Wer
             <select id="settingsItemAssigneeSelect"></select>
           </label>
-          <button class="primary-action" type="submit">Speichern</button>
-          <button class="secondary-danger" id="deleteItemSettingsButton" type="button">Gegenstand löschen</button>
+          <div class="item-settings-actions">
+            <button class="secondary-danger item-delete-icon" id="deleteItemSettingsButton" type="button" aria-label="Gegenstand löschen" title="Gegenstand löschen">X</button>
+            <button class="primary-action" type="submit">Speichern</button>
+          </div>
         </form>
       </div>
     </section>
@@ -1135,6 +1120,6 @@
       }
     </script>
     <script src="./config/supabase-config.js"></script>
-    <script src="./src/app.js?v=106"></script>
+    <script src="./src/app.js?v=107"></script>
   </body>
 </html>

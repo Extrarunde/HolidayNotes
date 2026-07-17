@@ -1359,7 +1359,8 @@ details[open] > .list-group-summary::after {
 }
 
 .category-slide {
-  flex: 0 0 min(520px, calc(100vw - 34px));
+  flex: 0 0 100%;
+  min-width: 0;
   scroll-snap-align: start;
 }
 
@@ -5481,7 +5482,7 @@ textarea:focus {
 }
 
 .trip-picker-card {
-  width: min(760px, calc(100vw - 24px));
+  width: min(960px, calc(100vw - 24px));
   border: 1px solid #bed8cc;
   box-shadow: 0 22px 70px rgba(9, 29, 22, 0.24);
 }
@@ -5567,7 +5568,7 @@ textarea:focus {
 }
 
 .trip-friends-card {
-  width: min(520px, calc(100vw - 24px));
+  width: min(720px, calc(100vw - 24px));
   border: 1px solid #bed8cc;
   box-shadow: 0 22px 70px rgba(9, 29, 22, 0.24);
 }
@@ -5583,6 +5584,57 @@ textarea:focus {
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 900;
+}
+
+.trip-friends-help,
+.trip-friend-selection p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.trip-friend-selection {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf9;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.trip-friend-add-button {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.item-settings-actions {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.item-settings-actions .item-delete-icon,
+.item-settings-actions .primary-action {
+  min-height: 46px;
+  margin: 0;
+}
+
+.item-settings-actions .item-delete-icon {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  color: var(--danger);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .trip-friends-add .field-hint {
@@ -6236,6 +6288,12 @@ textarea:focus {
     justify-self: stretch;
     width: 100%;
     min-width: 0;
+  }
+
+  .trip-code-button.trip-friend-add-button {
+    justify-self: start;
+    width: 42px;
+    min-width: 42px;
   }
 
   .manage-active-stats {

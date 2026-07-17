@@ -1,5 +1,6 @@
 ﻿const storageKey = "holiday-notes-state-v1";
 const themeKey = "holiday-notes-theme-mode-v1";
+const sharedAssigneeValue = "__shared__";
 const channel = "BroadcastChannel" in window ? new BroadcastChannel("holiday-notes-sync") : null;
 const supabaseSettings = window.HOLIDAY_NOTES_SUPABASE || {};
 let supabaseClient =
@@ -1402,7 +1403,7 @@ function openItemDialog(name = "", defaults = {}) {
   els.itemDialogCategorySelect.innerHTML = categories.map((category) => `<option>${escapeHtml(category)}</option>`).join("");
   els.itemDialogGroupInput.value = defaults.group || estimateItemGroup(pendingTripItemName, pendingItemPreferredCategory || els.categoryFilter.value);
   const people = peopleForAssignment();
-  els.itemDialogAssigneeSelect.innerHTML = people.map((person) => `<option>${escapeHtml(person)}</option>`).join("");
+  els.itemDialogAssigneeSelect.innerHTML = assigneeOptionsHtml(people);
   els.itemDialogAssigneeSelect.value = defaultAssignee();
   renderItemDialogAssigneeButtons(people);
   updateItemDialogCategoryHint();
@@ -1425,10 +1426,12 @@ function openItemDialog(name = "", defaults = {}) {
 function renderItemDialogAssigneeButtons(people = peopleForAssignment()) {
   if (!els.itemDialogAssigneeButtons || !els.itemDialogAssigneeSelect) return;
   const current = els.itemDialogAssigneeSelect.value || defaultAssignee();
-  els.itemDialogAssigneeButtons.innerHTML = people
+  const options = [...people, sharedAssigneeValue];
+  els.itemDialogAssigneeButtons.innerHTML = options
     .map((person) => {
       const active = person === current;
-      return `<button class="item-assignee-button ${active ? "active" : ""}" data-assignee="${escapeHtml(person)}" type="button" aria-pressed="${active}" style="--assignee-color: ${escapeHtml(assigneeColor(person))}"><span aria-hidden="true"></span><strong>${escapeHtml(person)}</strong></button>`;
+      const label = person === sharedAssigneeValue ? sharedAssigneeLabel(people) : person;
+      return `<button class="item-assignee-button ${active ? "active" : ""}" data-assignee="${escapeHtml(person)}" type="button" aria-pressed="${active}" style="--assignee-color: ${escapeHtml(assigneeColor(person))}"><span aria-hidden="true"></span><strong>${escapeHtml(label)}</strong></button>`;
     })
     .join("");
 }
@@ -1488,8 +1491,8 @@ function openItemSettingsDialog(item) {
   els.settingsItemCategorySelect.innerHTML = categories.map((category) => `<option>${escapeHtml(category)}</option>`).join("");
   els.settingsItemCategorySelect.value = categories.includes(item.category) ? item.category : "Freizeit";
   const people = peopleForAssignment();
-  els.settingsItemAssigneeSelect.innerHTML = people.map((person) => `<option>${escapeHtml(person)}</option>`).join("");
-  els.settingsItemAssigneeSelect.value = displayAssignee(item.assignee);
+  els.settingsItemAssigneeSelect.innerHTML = assigneeOptionsHtml(people);
+  els.settingsItemAssigneeSelect.value = item.assignee === sharedAssigneeValue ? sharedAssigneeValue : displayAssignee(item.assignee);
   els.itemSettingsDialog.hidden = false;
   window.setTimeout(() => els.settingsItemNameInput.focus(), 0);
 }
@@ -2032,6 +2035,7 @@ function accountToastName() {
 function displayAssignee(name) {
   const value = String(name || "").trim();
   if (!value) return "Alle";
+  if (value === sharedAssigneeValue) return peopleForAssignment().length === 2 ? "Beide" : "Alle";
   if (value === "Ich") return profileDisplayName() || "Ich";
   return value;
 }
@@ -2373,7 +2377,7 @@ function renderTripFriendPicker(container, selected = []) {
   const selectedKeys = new Set((selected || []).map((friend) => normalizeFriendName(displayAssignee(friend)).toLowerCase()));
   const selectedIds = new Set(container.dataset.selectedFriendIds?.split(",").filter(Boolean) || []);
   if (!options.length) {
-    container.innerHTML = `<span class="empty-inline">Noch keine Freunde gespeichert. Gib oben einen Namen oder eine E-Mail ein.</span>`;
+    container.innerHTML = `<span class="empty-inline">Noch keine bestätigten Freunde. Füge Freunde zuerst in den Konto-Einstellungen hinzu.</span>`;
     return;
   }
   container.innerHTML = options
@@ -2409,8 +2413,19 @@ function peopleForAssignment(trip = activeTrip()) {
   return Array.from(new Set([
     profileName || "Ich",
     ...(trip.people || []).map(displayAssignee),
-    ...trip.items.map((item) => displayAssignee(item.assignee))
+    ...trip.items.filter((item) => item.assignee !== sharedAssigneeValue).map((item) => displayAssignee(item.assignee))
   ].filter((person) => person && person !== "Alle")));
+}
+
+function sharedAssigneeLabel(people = peopleForAssignment()) {
+  return people.length === 2 ? "Beide" : "Alle";
+}
+
+function assigneeOptionsHtml(people = peopleForAssignment()) {
+  return [
+    ...people.map((person) => `<option value="${escapeHtml(person)}">${escapeHtml(person)}</option>`),
+    `<option value="${sharedAssigneeValue}">${sharedAssigneeLabel(people)}</option>`
+  ].join("");
 }
 
 function defaultAssignee(trip = activeTrip()) {
@@ -2536,7 +2551,7 @@ function filteredTripItems(trip) {
   return trip.items.filter((item) => {
     const matchesQuery = !query || item.name.toLowerCase().includes(query);
     const matchesCategory = category === "all" || item.category === category;
-    const matchesAssignee = assignee === "all" || displayAssignee(item.assignee) === assignee;
+    const matchesAssignee = assignee === "all" || item.assignee === sharedAssigneeValue || displayAssignee(item.assignee) === assignee;
     const matchesStatus =
       status === "all" ||
       (status === "missing" && !item.packed) ||
@@ -2704,8 +2719,10 @@ function createItemRow(item, trip) {
   row.querySelector(".item-details").innerHTML = itemDetailsHtml(item);
   const toggleButton = row.querySelector(".item-toggle");
   const controls = row.querySelector(".item-controls");
+  let swipeHandled = false;
   toggleButton.addEventListener("click", (event) => {
     event.stopPropagation();
+    if (swipeHandled) return;
     if (!editable) {
       setCloudStatus("Melde dich an, um Einträge zu bearbeiten.", "local");
       return;
@@ -2738,6 +2755,33 @@ function createItemRow(item, trip) {
     controls.hidden = true;
     row.classList.remove("expanded");
     updateItem(item.id, { shopping: !item.shopping }, `${item.name} für Einkauf aktualisiert`);
+  });
+
+  let swipeStart = null;
+  row.addEventListener("pointerdown", (event) => {
+    if (!editable || !event.isPrimary || event.button !== 0) return;
+    if (event.target.closest(".pack-button, .buy-button, input, select, textarea, a")) return;
+    event.stopPropagation();
+    swipeStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: Date.now() };
+    row.setPointerCapture?.(event.pointerId);
+  });
+  row.addEventListener("pointerup", (event) => {
+    if (!swipeStart || event.pointerId !== swipeStart.pointerId) return;
+    const deltaX = event.clientX - swipeStart.x;
+    const deltaY = event.clientY - swipeStart.y;
+    const elapsed = Date.now() - swipeStart.time;
+    swipeStart = null;
+    if (elapsed > 700 || deltaX > -72 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+    swipeHandled = true;
+    window.setTimeout(() => { swipeHandled = false; }, 0);
+    if (item.shopping) {
+      setCloudStatus(`${item.name} steht schon auf der Einkaufsliste.`, "online");
+      return;
+    }
+    updateItem(item.id, { shopping: true, bought: false }, `${item.name} zur Einkaufsliste hinzugefügt`);
+  });
+  row.addEventListener("pointercancel", () => {
+    swipeStart = null;
   });
 
   return row;
@@ -3020,7 +3064,7 @@ function renderTripOverview(trip) {
         <strong>${friends.length ? `${friends.length} ${friends.length === 1 ? "Freund dabei" : "Freunde dabei"}` : "Freunde einladen"}</strong>
         <span>${escapeHtml(friendText)}</span>
       </div>
-      <button class="trip-code-button" id="overviewFriendsButton" type="button" ${editable ? "" : "disabled"}>${placeholder ? "Erst Reise anlegen" : "Freunde verwalten"}</button>
+      <button class="trip-code-button trip-friend-add-button" id="overviewFriendsButton" type="button" aria-label="Freunde auswählen" title="Freunde auswählen" ${editable ? "" : "disabled"}>${placeholder ? "Erst Reise anlegen" : "+"}</button>
     </div>
   `;
   els.tripOverviewPanel.querySelector("#activeTripOverviewButton").addEventListener("click", placeholder ? openNewTripDialog : openTripPicker);
@@ -3097,11 +3141,10 @@ function openTripFriendsDialog(tripId = state.activeTripId) {
   }
   editingTripFriendsId = trip.id;
   if (els.tripFriendsDialogTitle) els.tripFriendsDialogTitle.textContent = `Freunde für ${trip.name}`;
-  if (els.tripFriendsInput) els.tripFriendsInput.value = "";
   if (els.tripFriendsList) els.tripFriendsList.dataset.selectedFriendIds = (trip.friendIds || []).join(",");
   renderTripFriendPicker(els.tripFriendsList, trip.people || []);
   els.tripFriendsDialog.hidden = false;
-  window.setTimeout(() => els.tripFriendsInput?.focus(), 0);
+  window.setTimeout(() => els.tripFriendsList?.querySelector("[data-trip-friend]")?.focus(), 0);
 }
 
 function closeTripFriendsDialog() {
