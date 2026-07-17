@@ -352,12 +352,12 @@ textarea {
 }
 
 .app-status-toast {
-  position: sticky;
-  top: 0;
-  z-index: 35;
-  justify-self: center;
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 60;
   max-width: min(520px, calc(100% - 24px));
-  margin: 0 auto -4px;
+  margin: 0;
   padding: 9px 14px;
   border: 1px solid #d6e5de;
   border-radius: 999px;
@@ -369,14 +369,14 @@ textarea {
   line-height: 1.2;
   text-align: center;
   opacity: 0;
-  transform: translateY(-12px);
+  transform: translate(-50%, 16px);
   transition: opacity 0.22s ease, transform 0.22s ease;
   pointer-events: none;
 }
 
 .app-status-toast.visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
 }
 
 .app-status-toast.online {
@@ -903,6 +903,93 @@ textarea {
 
 .friend-chip-list {
   display: flex !important;
+}
+
+.friend-requests {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-section-body > .field-hint {
+  margin: -2px 0 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.friend-request-title {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.friend-feedback {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #cfe3d9;
+  border-radius: 8px;
+  background: #f4faf7;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.friend-feedback.error {
+  border-color: #ffd0d0;
+  background: #fff7f7;
+  color: var(--danger);
+}
+
+.friend-feedback.success {
+  border-color: #bfe4d2;
+}
+
+.friend-request-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #cfe3d9;
+  border-radius: 8px;
+  background: #f7fbf9;
+}
+
+.friend-request-card strong,
+.friend-request-card span {
+  display: block;
+}
+
+.friend-request-card span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.friend-request-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.friend-request-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+}
+
+.friend-request-actions [data-friend-response="accept"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.friend-request-outgoing {
+  border-style: dashed;
+  background: transparent;
 }
 
 .dialog-hidden-field {
@@ -5136,34 +5223,8 @@ details[open] > .list-group-summary::after {
 }
 
 .trip-team-panel {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-}
-
-.trip-team-mini-stats {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 7px;
-}
-
-.trip-team-mini-stats span {
-  display: inline-grid;
-  min-width: 92px;
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px solid #d8e8e0;
-  border-radius: 8px;
-  background: #f4faf7;
-  color: #52665d;
-  font-size: 0.76rem;
-  line-height: 1.15;
-  text-align: center;
-}
-
-.trip-team-mini-stats strong {
-  color: var(--accent-strong);
-  font-size: 1.02rem;
 }
 
 .trip-overview-invite > div {
@@ -6171,15 +6232,6 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
-  .trip-team-mini-stats {
-    justify-content: stretch;
-  }
-
-  .trip-team-mini-stats span {
-    min-width: 0;
-    width: 100%;
-  }
-
   .trip-code-button {
     justify-self: stretch;
     width: 100%;
@@ -6230,6 +6282,18 @@ textarea:focus {
     right: 12px;
     bottom: calc(76px + env(safe-area-inset-bottom));
     max-width: min(260px, calc(100vw - 24px));
+  }
+
+  .app-status-toast {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .friend-request-card {
+    grid-template-columns: 1fr;
+  }
+
+  .friend-request-actions button {
+    flex: 1;
   }
 
   .floating-add-button {

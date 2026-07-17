@@ -35,6 +35,19 @@ create table if not exists public.user_friends (
   check (owner_id <> friend_id)
 );
 
+create table if not exists public.friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references auth.users(id) on delete cascade,
+  recipient_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (requester_id, recipient_id),
+  check (requester_id <> recipient_id)
+);
+
+alter table public.friend_requests add column if not exists updated_at timestamptz not null default now();
+
 create table if not exists public.global_items (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
@@ -286,8 +299,129 @@ language sql
 security definer
 set search_path = public
 as $$
-  delete from public.user_friends
-  where owner_id = auth.uid() and friend_id = friend_user_id;
+  with removed_friends as (
+    delete from public.user_friends
+    where (owner_id = auth.uid() and friend_id = friend_user_id)
+       or (owner_id = friend_user_id and friend_id = auth.uid())
+  )
+  delete from public.friend_requests
+  where (requester_id = auth.uid() and recipient_id = friend_user_id)
+     or (requester_id = friend_user_id and recipient_id = auth.uid());
+$$;
+
+create or replace function public.send_friend_request_by_email(friend_email text)
+returns table(friend_id uuid, display_name text, email text, relationship_status text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  matched_user_id uuid;
+  existing_request public.friend_requests;
+  response_status text;
+begin
+  select id into matched_user_id
+  from auth.users
+  where lower(auth.users.email) = lower(trim(friend_email))
+  limit 1;
+
+  if matched_user_id is null then
+    raise exception 'Kein Konto mit dieser E-Mail-Adresse gefunden';
+  end if;
+
+  if matched_user_id = auth.uid() then
+    raise exception 'Du kannst dich nicht selbst als Freund hinzufügen';
+  end if;
+
+  if exists (
+    select 1 from public.user_friends
+    where owner_id = auth.uid() and friend_id = matched_user_id
+  ) then
+    response_status := 'accepted';
+  else
+    select * into existing_request
+    from public.friend_requests
+    where (requester_id = auth.uid() and recipient_id = matched_user_id)
+       or (requester_id = matched_user_id and recipient_id = auth.uid())
+    order by updated_at desc
+    limit 1;
+
+    if found and existing_request.status = 'pending' then
+      response_status := case when existing_request.recipient_id = auth.uid() then 'incoming' else 'pending' end;
+    elsif found then
+      update public.friend_requests
+      set requester_id = auth.uid(), recipient_id = matched_user_id, status = 'pending', updated_at = now()
+      where id = existing_request.id;
+      response_status := 'pending';
+    else
+      insert into public.friend_requests (requester_id, recipient_id)
+      values (auth.uid(), matched_user_id);
+      response_status := 'pending';
+    end if;
+  end if;
+
+  return query
+  select
+    matched_user_id,
+    coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
+    u.email,
+    response_status
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where u.id = matched_user_id;
+end;
+$$;
+
+create or replace function public.list_my_friend_requests()
+returns table(request_id uuid, direction text, display_name text, email text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    r.id,
+    case when r.recipient_id = auth.uid() then 'incoming' else 'outgoing' end,
+    coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
+    u.email
+  from public.friend_requests r
+  join auth.users u on u.id = case when r.recipient_id = auth.uid() then r.requester_id else r.recipient_id end
+  left join public.profiles p on p.id = u.id
+  where (r.requester_id = auth.uid() or r.recipient_id = auth.uid())
+    and r.status = 'pending'
+  order by r.created_at desc;
+$$;
+
+create or replace function public.respond_to_friend_request(target_request_id uuid, accept_request boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  requester uuid;
+begin
+  select requester_id into requester
+  from public.friend_requests
+  where id = target_request_id
+    and recipient_id = auth.uid()
+    and status = 'pending';
+
+  if requester is null then
+    raise exception 'Freundschaftsanfrage wurde nicht gefunden';
+  end if;
+
+  update public.friend_requests
+  set status = case when accept_request then 'accepted' else 'rejected' end,
+      updated_at = now()
+  where id = target_request_id;
+
+  if accept_request then
+    insert into public.user_friends (owner_id, friend_id)
+    values (auth.uid(), requester), (requester, auth.uid())
+    on conflict do nothing;
+  end if;
+end;
 $$;
 
 create or replace function public.sync_trip_friends(target_trip_id uuid, friend_user_ids uuid[])
@@ -531,3 +665,19 @@ begin
     alter publication supabase_realtime add table public.user_friends;
   end if;
 end $$;
+
+-- Bestehende, frühere Freundschaften bleiben gültig und werden gegenseitig ergänzt.
+insert into public.user_friends (owner_id, friend_id)
+select friend_id, owner_id
+from public.user_friends
+on conflict do nothing;
+
+alter table public.friend_requests enable row level security;
+
+revoke all on function public.add_friend_by_email(text) from authenticated;
+revoke all on function public.send_friend_request_by_email(text) from public;
+revoke all on function public.list_my_friend_requests() from public;
+revoke all on function public.respond_to_friend_request(uuid, boolean) from public;
+grant execute on function public.send_friend_request_by_email(text) to authenticated;
+grant execute on function public.list_my_friend_requests() to authenticated;
+grant execute on function public.respond_to_friend_request(uuid, boolean) to authenticated;

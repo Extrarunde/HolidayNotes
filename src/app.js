@@ -47,6 +47,7 @@ let manageTripActivities = [];
 let localModeToastTimer = null;
 let localModeToastShown = false;
 let appStatusToastTimer = null;
+let announcedFriendRequestIds = new Set();
 const storedThemeMode = localStorage.getItem(themeKey);
 let themeMode = ["light", "dark"].includes(storedThemeMode) ? storedThemeMode : "light";
 let deferredInstallPrompt = null;
@@ -420,6 +421,7 @@ const starterState = {
   mealTemplates: [],
   friends: [],
   friendAccounts: [],
+  friendRequests: [],
   trips: [
     {
       id: "trip-home",
@@ -509,6 +511,7 @@ const els = {
   tripFriendsDialogTitle: document.querySelector("#tripFriendsDialogTitle"),
   tripFriendsInput: document.querySelector("#tripFriendsInput"),
   addTripFriendsButton: document.querySelector("#addTripFriendsButton"),
+  tripFriendFeedback: document.querySelector("#tripFriendFeedback"),
   tripFriendsList: document.querySelector("#tripFriendsList"),
   connectionBanner: document.querySelector("#connectionBanner"),
   localModeToast: document.querySelector("#localModeToast"),
@@ -722,6 +725,8 @@ const els = {
   accountFriendNameInput: document.querySelector("#accountFriendNameInput"),
   addAccountFriendButton: document.querySelector("#addAccountFriendButton"),
   accountFriendsList: document.querySelector("#accountFriendsList"),
+  accountFriendRequests: document.querySelector("#accountFriendRequests"),
+  accountFriendFeedback: document.querySelector("#accountFriendFeedback"),
   accountFriendCount: document.querySelector("#accountFriendCount"),
   deleteAccountButton: document.querySelector("#deleteAccountButton"),
   installAppButton: document.querySelector("#installAppButton"),
@@ -992,6 +997,7 @@ function withDefaultGlobalItems(savedState) {
   stateWithDefaults.mealTemplates ||= [];
   stateWithDefaults.friends = normalizeFriendList(stateWithDefaults.friends || []);
   stateWithDefaults.friendAccounts = normalizeFriendAccounts(stateWithDefaults.friendAccounts || []);
+  stateWithDefaults.friendRequests = normalizeFriendRequests(stateWithDefaults.friendRequests || []);
   removeDeveloperTestPeople(stateWithDefaults);
   const existingByName = new Map();
   stateWithDefaults.globalItems.forEach((item) => {
@@ -2074,6 +2080,22 @@ function normalizeFriendAccounts(accounts = []) {
     });
 }
 
+function normalizeFriendRequests(requests = []) {
+  const seen = new Set();
+  return requests
+    .map((request) => ({
+      id: String(request?.id || request?.request_id || "").trim(),
+      direction: request?.direction === "incoming" ? "incoming" : "outgoing",
+      name: normalizeFriendName(request?.name || request?.display_name || request?.email || ""),
+      email: String(request?.email || "").trim().toLowerCase()
+    }))
+    .filter((request) => isUuid(request.id) && request.name && !seen.has(request.id) && !isDeveloperTestPersonName(request.name))
+    .filter((request) => {
+      seen.add(request.id);
+      return true;
+    });
+}
+
 function friendAccounts() {
   state.friendAccounts = normalizeFriendAccounts(state.friendAccounts || []);
   return state.friendAccounts;
@@ -2082,7 +2104,7 @@ function friendAccounts() {
 function friendOptions() {
   const accounts = friendAccounts().map((account) => ({ ...account, linked: true }));
   const linkedNames = new Set(accounts.map((account) => account.name.toLowerCase()));
-  const localFriends = accountFriends()
+  const localFriends = (currentUser ? [] : accountFriends())
     .filter((name) => !linkedNames.has(name.toLowerCase()))
     .map((name) => ({ id: "", name, email: "", linked: false }));
   return [...accounts, ...localFriends];
@@ -2091,6 +2113,21 @@ function friendOptions() {
 function accountFriends() {
   state.friends = normalizeFriendList(state.friends || []);
   return state.friends;
+}
+
+function friendRequests() {
+  state.friendRequests = normalizeFriendRequests(state.friendRequests || []);
+  return state.friendRequests;
+}
+
+function setFriendFeedback(message = "", type = "info") {
+  [els.accountFriendFeedback, els.tripFriendFeedback].forEach((element) => {
+    if (!element) return;
+    element.hidden = !message;
+    element.textContent = message;
+    element.classList.toggle("error", type === "error");
+    element.classList.toggle("success", type === "success");
+  });
 }
 
 function mergeAccountFriendsFromProfile() {
@@ -2119,42 +2156,71 @@ async function syncAccountFriendsToProfile() {
 
 async function loadFriendAccountsFromCloud() {
   if (!supabaseClient || !currentUser || !navigator.onLine) return false;
-  const { data, error } = await withTimeout(
-    supabaseClient.rpc("list_my_friends"),
-    "Freunde konnten gerade nicht geladen werden. Du bist trotzdem angemeldet."
-  );
-  if (error) {
-    if (!isMissingCloudFieldError(error) && error.code !== "PGRST202") {
-      console.warn("Verknüpfte Freunde konnten nicht geladen werden.", error);
+  const [friendResult, requestResult] = await Promise.allSettled([
+    withTimeout(supabaseClient.rpc("list_my_friends"), "Freunde konnten gerade nicht geladen werden. Du bist trotzdem angemeldet."),
+    withTimeout(supabaseClient.rpc("list_my_friend_requests"), "Freundschaftsanfragen konnten gerade nicht geladen werden.")
+  ]);
+  const { data: friendData, error: friendError } = friendResult.status === "fulfilled"
+    ? friendResult.value
+    : { data: null, error: friendResult.reason };
+  const { data: requestData, error: requestError } = requestResult.status === "fulfilled"
+    ? requestResult.value
+    : { data: null, error: requestResult.reason };
+  if (friendError) {
+    if (!isMissingCloudFieldError(friendError) && friendError.code !== "PGRST202") {
+      console.warn("Verknüpfte Freunde konnten nicht geladen werden.", friendError);
     }
     return false;
   }
-  const accounts = normalizeFriendAccounts(data || []);
+  if (requestError && !isMissingCloudFieldError(requestError) && requestError.code !== "PGRST202") {
+    console.warn("Freundschaftsanfragen konnten nicht geladen werden.", requestError);
+  }
+  const accounts = normalizeFriendAccounts(friendData || []);
   state.friendAccounts = accounts;
   state.friends = normalizeFriendList([...accountFriends(), ...accounts.map((account) => account.name)]);
+  if (!requestError) {
+    state.friendRequests = normalizeFriendRequests(requestData || []);
+    const newIncomingRequest = state.friendRequests.find(
+      (request) => request.direction === "incoming" && !announcedFriendRequestIds.has(request.id)
+    );
+    state.friendRequests.filter((request) => request.direction === "incoming").forEach((request) => announcedFriendRequestIds.add(request.id));
+    if (newIncomingRequest) {
+      window.setTimeout(() => setCloudStatus(`Neue Freundschaftsanfrage von ${newIncomingRequest.name}.`, "online"), 250);
+    }
+  }
   return true;
 }
 
 async function addFriendToAccount(value) {
   if (!requireSignedInForEdit()) return false;
   const friend = normalizeFriendName(value);
-  if (!friend) return false;
+  if (!friend) {
+    setFriendFeedback("Bitte gib eine E-Mail-Adresse ein.", "error");
+    return false;
+  }
   if (isOwnPersonName(friend) || friend.toLowerCase() === String(currentUser?.email || "").trim().toLowerCase()) {
+    setFriendFeedback("Dich selbst musst du nicht als Freund hinzufügen.", "error");
     setCloudStatus("Dich selbst musst du nicht als Freund hinzufügen.", "error");
     return false;
   }
-  if (friend.includes("@") && supabaseClient && currentUser && navigator.onLine) {
+  if (!friend.includes("@")) {
+    setFriendFeedback("Bitte verwende die E-Mail-Adresse des Freundes.", "error");
+    setCloudStatus("Bitte verwende die E-Mail-Adresse des Freundes.", "error");
+    return false;
+  }
+  if (supabaseClient && currentUser && navigator.onLine) {
     let data;
     let error;
     try {
       ({ data, error } = await Promise.race([
-        supabaseClient.rpc("add_friend_by_email", { friend_email: friend }),
+        supabaseClient.rpc("send_friend_request_by_email", { friend_email: friend }),
         new Promise((resolve) => window.setTimeout(() => resolve({
           data: null,
           error: { code: "FRIEND_TIMEOUT", message: "Die Freundesuche dauert zu lange. Bitte versuche es erneut." }
         }), 8000))
       ]));
     } catch (requestError) {
+      setFriendFeedback("Freundesuche gerade nicht erreichbar. Bitte prüfe die Cloud-Verbindung.", "error");
       setCloudStatus(
         friendlyCloudError(requestError, "Freund konnte nicht hinzugefügt werden. Prüfe bitte deine Internetverbindung."),
         "error"
@@ -2163,34 +2229,40 @@ async function addFriendToAccount(value) {
     }
     if (error) {
       if (isMissingCloudFieldError(error) || error.code === "PGRST202") {
+        setFriendFeedback("Die Freundesfunktion wird noch eingerichtet. Bitte führe das neue Supabase-Schema aus.", "error");
         setCloudStatus("Die Freundefunktion benötigt das aktuelle Supabase-Schema.", "error");
         return false;
       }
+      setFriendFeedback(friendlyCloudError(error, "Freund konnte nicht gefunden werden."), "error");
       setCloudStatus(friendlyCloudError(error, "Freund konnte nicht gefunden werden."), "error");
       return false;
     }
-    const account = normalizeFriendAccounts(Array.isArray(data) ? data : [data])[0];
-    if (!account) {
+    const response = Array.isArray(data) ? data[0] : data;
+    const account = normalizeFriendAccounts([response])[0];
+    if (!account || !response) {
+      setFriendFeedback("Freund konnte nicht gefunden werden.", "error");
       setCloudStatus("Freund konnte nicht gefunden werden.", "error");
       return false;
     }
-    state.friendAccounts = normalizeFriendAccounts([...friendAccounts(), account]);
-    state.friends = normalizeFriendList([...accountFriends(), account.name]);
-    commit();
-    setCloudStatus(`${account.name} wurde als Freund verknüpft.`, "online");
-    return account.name;
-  }
-  const friends = accountFriends();
-  if (!friends.some((entry) => entry.toLowerCase() === friend.toLowerCase())) {
-    state.friends = [...friends, friend];
-    setCloudStatus(`${friend} wurde zu deinen Freunden hinzugefügt.`, currentUser ? "online" : "local");
-    commit();
-    syncAccountFriendsToProfile().catch((error) => console.warn("Freundeliste konnte nicht synchronisiert werden.", error));
-  } else {
-    setCloudStatus(`${friend} ist schon in deiner Freundesliste.`, currentUser ? "online" : "local");
+    await loadFriendAccountsFromCloud();
     renderAccountFriends();
+    if (response.relationship_status === "accepted") {
+      setFriendFeedback(`${account.name} ist bereits dein Freund.`, "success");
+      setCloudStatus(`${account.name} ist bereits dein Freund.`, "online");
+      return { name: account.name, accepted: true };
+    }
+    if (response.relationship_status === "incoming") {
+      setFriendFeedback(`${account.name} wartet auf deine Antwort in den Einstellungen.`, "success");
+      setCloudStatus(`${account.name} wartet auf deine Antwort in den Einstellungen.`, "online");
+      return { name: account.name, pending: true };
+    }
+    setFriendFeedback(`Freundschaftsanfrage an ${account.name} gesendet.`, "success");
+    setCloudStatus(`Freundschaftsanfrage an ${account.name} gesendet.`, "online");
+    return { name: account.name, pending: true };
   }
-  return friend;
+  setFriendFeedback("Freundschaftsanfragen brauchen eine Internetverbindung.", "error");
+  setCloudStatus("Freundschaftsanfragen brauchen eine Internetverbindung.", "error");
+  return false;
 }
 
 async function removeFriendFromAccount(friend, friendId = "") {
@@ -2207,17 +2279,58 @@ async function removeFriendFromAccount(friend, friendId = "") {
   }
   state.trips.forEach((trip) => {
     trip.people = (trip.people || []).filter((person) => normalizeFriendName(displayAssignee(person)).toLowerCase() !== target);
+    if (friendId) trip.friendIds = (trip.friendIds || []).filter((id) => id !== friendId);
   });
   commit();
   syncAccountFriendsToProfile().catch((error) => console.warn("Freundeliste konnte nicht synchronisiert werden.", error));
 }
 
+async function respondToFriendRequest(requestId, accept) {
+  if (!requireSignedInForEdit() || !isUuid(requestId) || !supabaseClient || !navigator.onLine) return;
+  const request = friendRequests().find((entry) => entry.id === requestId);
+  const { error } = await supabaseClient.rpc("respond_to_friend_request", {
+    target_request_id: requestId,
+    accept_request: Boolean(accept)
+  });
+  if (error) {
+    setFriendFeedback(friendlyCloudError(error, "Die Freundschaftsanfrage konnte nicht beantwortet werden."), "error");
+    setCloudStatus(friendlyCloudError(error, "Die Freundschaftsanfrage konnte nicht beantwortet werden."), "error");
+    return;
+  }
+  await loadFriendAccountsFromCloud();
+  commit();
+  const message = accept ? `${request?.name || "Freundschaftsanfrage"} angenommen.` : "Freundschaftsanfrage abgelehnt.";
+  setFriendFeedback(message, "success");
+  setCloudStatus(message, "online");
+}
+
 function renderAccountFriends() {
   const options = friendOptions();
   if (els.accountFriendCount) els.accountFriendCount.textContent = String(options.length);
+  if (els.accountFriendRequests) {
+    const requests = friendRequests();
+    els.accountFriendRequests.innerHTML = requests.length
+      ? `
+        <p class="friend-request-title">${requests.some((request) => request.direction === "incoming") ? "Offene Freundschaftsanfragen" : "Gesendete Freundschaftsanfragen"}</p>
+        ${requests.map((request) => request.direction === "incoming" ? `
+          <article class="friend-request-card">
+            <div><strong>${escapeHtml(request.name)}</strong><span>möchte mit dir befreundet sein</span></div>
+            <div class="friend-request-actions">
+              <button type="button" data-friend-response="accept" data-request-id="${escapeHtml(request.id)}">Annehmen</button>
+              <button type="button" data-friend-response="reject" data-request-id="${escapeHtml(request.id)}">Ablehnen</button>
+            </div>
+          </article>
+        ` : `
+          <article class="friend-request-card friend-request-outgoing">
+            <div><strong>${escapeHtml(request.name)}</strong><span>Anfrage gesendet</span></div>
+          </article>
+        `).join("")}
+      `
+      : "";
+  }
   if (!els.accountFriendsList) return;
   if (!options.length) {
-    els.accountFriendsList.innerHTML = `<span class="empty-inline">Noch keine Freunde gespeichert.</span>`;
+    els.accountFriendsList.innerHTML = `<span class="empty-inline">Noch keine bestätigten Freunde.</span>`;
     renderTripFriendPicker(els.newTripFriendsList, selectedFriendsFromPicker(els.newTripFriendsList));
     renderTripFriendPicker(els.manageDialogTripFriendsList, selectedFriendsFromPicker(els.manageDialogTripFriendsList));
     renderTripFriendPicker(els.tripFriendsList, selectedFriendsFromPicker(els.tripFriendsList));
@@ -2226,7 +2339,7 @@ function renderAccountFriends() {
   els.accountFriendsList.innerHTML = options
     .map((friend) => `
       <button class="activity-chip friend-chip" data-remove-friend="${escapeHtml(friend.name)}" data-friend-id="${escapeHtml(friend.id)}" type="button">
-        ${escapeHtml(friend.name)}${friend.linked ? " · Konto" : ""} <span aria-hidden="true">x</span>
+        ${escapeHtml(friend.name)} <span aria-hidden="true">x</span>
       </button>
     `)
     .join("");
@@ -2888,7 +3001,7 @@ function renderTripOverview(trip) {
   const editable = canEditLists() && !placeholder;
   const overviewIcon = tripIcon(trip);
   const friends = (trip.people || []).map(displayAssignee).filter((person) => person && !isOwnPersonName(person));
-  const friendText = friends.length ? friends.join(", ") : "Noch keine Freunde zugewiesen.";
+  const friendText = friends.length ? friends.join(", ") : "Lade Freunde ein und teile die Packliste.";
   els.tripOverviewPanel.innerHTML = `
     <button class="trip-overview-main trip-overview-clickable" id="activeTripOverviewButton" type="button" aria-label="${placeholder ? "Reise anlegen" : "Aktive Reise wechseln"}">
       <div>
@@ -2903,15 +3016,11 @@ function renderTripOverview(trip) {
     </div>
     <div class="trip-overview-invite trip-team-panel">
       <div>
-        <p class="eyebrow">Team</p>
-        <strong>${friends.length ? `${friends.length} ${friends.length === 1 ? "Freund dabei" : "Freunde dabei"}` : "Alleine packen"}</strong>
+        <p class="eyebrow">Gemeinsam packen</p>
+        <strong>${friends.length ? `${friends.length} ${friends.length === 1 ? "Freund dabei" : "Freunde dabei"}` : "Freunde einladen"}</strong>
         <span>${escapeHtml(friendText)}</span>
       </div>
-      <div class="trip-team-mini-stats" aria-label="Teamübersicht">
-        <span><strong>${peopleForAssignment(trip).length}</strong> Personen</span>
-        <span><strong>${friendOptions().length}</strong> gespeichert</span>
-      </div>
-      <button class="trip-code-button" id="overviewFriendsButton" type="button" ${editable ? "" : "disabled"}>${placeholder ? "Erst Reise anlegen" : "Freunde bearbeiten"}</button>
+      <button class="trip-code-button" id="overviewFriendsButton" type="button" ${editable ? "" : "disabled"}>${placeholder ? "Erst Reise anlegen" : "Freunde verwalten"}</button>
     </div>
   `;
   els.tripOverviewPanel.querySelector("#activeTripOverviewButton").addEventListener("click", placeholder ? openNewTripDialog : openTripPicker);
@@ -5957,8 +6066,9 @@ els.addPersonForm.addEventListener("submit", async (event) => {
   const friend = els.newPersonInput.value.trim();
   if (!friend) return;
   els.newPersonInput.value = "";
-  const addedName = await addFriendToAccount(friend);
-  if (!addedName) return;
+  const friendResult = await addFriendToAccount(friend);
+  if (!friendResult?.accepted) return;
+  const addedName = friendResult.name;
   const trip = activeTrip();
   trip.people = tripPeopleFromSelectedFriends([...(trip.people || []), addedName], trip);
   const linkedAccount = friendOptions().find((entry) => entry.name.toLowerCase() === addedName.toLowerCase() && entry.id);
@@ -6298,7 +6408,8 @@ if (els.addAccountFriendButton) {
     els.addAccountFriendButton.disabled = true;
     els.addAccountFriendButton.setAttribute("aria-busy", "true");
     try {
-      if (!(await addFriendToAccount(els.accountFriendNameInput.value))) return;
+      const friendResult = await addFriendToAccount(els.accountFriendNameInput.value);
+      if (!friendResult) return;
       els.accountFriendNameInput.value = "";
       renderAccountFriends();
       els.accountFriendNameInput.focus();
@@ -6325,6 +6436,15 @@ if (els.accountFriendsList) {
   });
 }
 
+if (els.accountFriendRequests) {
+  els.accountFriendRequests.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-friend-response]");
+    if (!button) return;
+    button.disabled = true;
+    await respondToFriendRequest(button.dataset.requestId || "", button.dataset.friendResponse === "accept");
+  });
+}
+
 function handleTripFriendPickerClick(container, options = {}) {
   return (event) => {
     const button = event.target.closest("[data-trip-friend]");
@@ -6341,13 +6461,16 @@ async function addFriendFromTripDialog(scope) {
   const input = isManage ? els.manageDialogTripFriendInput : els.newTripFriendInput;
   const container = isManage ? els.manageDialogTripFriendsList : els.newTripFriendsList;
   const friend = normalizeFriendName(input?.value);
-  const addedName = friend ? await addFriendToAccount(friend) : "";
-  if (!addedName) return;
+  const friendResult = friend ? await addFriendToAccount(friend) : false;
+  if (!friendResult) return;
+  if (input) input.value = "";
+  if (!friendResult.accepted) {
+    input?.focus();
+    return;
+  }
+  const addedName = friendResult.name;
   const selected = normalizeFriendList([...selectedFriendsFromPicker(container), addedName]);
   renderTripFriendPicker(container, selected);
-  if (input) {
-    input.value = "";
-  }
   if (isManage) {
     saveManageTripDialog();
     return;
@@ -6357,12 +6480,17 @@ async function addFriendFromTripDialog(scope) {
 
 async function addFriendFromTripFriendsDialog() {
   const friend = normalizeFriendName(els.tripFriendsInput?.value);
-  const addedName = friend ? await addFriendToAccount(friend) : "";
-  if (!addedName) return;
+  const friendResult = friend ? await addFriendToAccount(friend) : false;
+  if (!friendResult) return;
+  if (els.tripFriendsInput) els.tripFriendsInput.value = "";
+  if (!friendResult.accepted) {
+    els.tripFriendsInput?.focus();
+    return;
+  }
+  const addedName = friendResult.name;
   const selected = normalizeFriendList([...selectedFriendsFromPicker(els.tripFriendsList), addedName]);
   renderTripFriendPicker(els.tripFriendsList, selected);
   if (els.tripFriendsInput) {
-    els.tripFriendsInput.value = "";
     els.tripFriendsInput.focus();
   }
   saveTripFriendsDialog({ close: false });

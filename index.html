@@ -11,7 +11,7 @@
     <link rel="manifest" href="./public/manifest.webmanifest" />
     <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./src/styles.css?v=105" />
+    <link rel="stylesheet" href="./src/styles.css?v=106" />
   </head>
   <body>
     <main class="app-shell">
@@ -479,10 +479,13 @@
                   <label>
                     Freund hinzufügen
                     <span class="inline-add-field">
-                      <input id="accountFriendNameInput" placeholder="Name oder E-Mail" />
+                      <input id="accountFriendNameInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
                       <button id="addAccountFriendButton" type="button">+</button>
                     </span>
                   </label>
+                  <p class="field-hint">Eine Anfrage wird erst nach der Annahme zu einer Freundschaft.</p>
+                  <p class="friend-feedback" id="accountFriendFeedback" role="status" hidden></p>
+                  <div class="friend-requests" id="accountFriendRequests"></div>
                   <div class="activity-chip-list friend-chip-list" id="accountFriendsList"></div>
                 </div>
               </details>
@@ -641,7 +644,7 @@
           <label>
             Freunde
             <span class="inline-add-field">
-              <input id="newTripFriendInput" placeholder="Name oder E-Mail" />
+              <input id="newTripFriendInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
               <button id="addNewTripFriendButton" type="button" aria-label="Freund hinzufügen">+</button>
             </span>
             <div class="activity-chip-list friend-chip-list trip-friend-picker" id="newTripFriendsList"></div>
@@ -748,7 +751,7 @@
           <label class="dialog-hidden-field">
             Freunde
             <span class="inline-add-field">
-              <input id="manageDialogTripFriendInput" placeholder="Name oder E-Mail" />
+              <input id="manageDialogTripFriendInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
               <button id="addManageTripFriendButton" type="button" aria-label="Freund hinzufügen">+</button>
             </span>
             <div class="activity-chip-list friend-chip-list trip-friend-picker" id="manageDialogTripFriendsList"></div>
@@ -775,11 +778,12 @@
         <label class="trip-friends-add">
           Freund hinzufügen
           <span class="inline-add-field">
-            <input id="tripFriendsInput" placeholder="Name oder E-Mail" />
+            <input id="tripFriendsInput" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail-Adresse" />
             <button id="addTripFriendsButton" type="button" aria-label="Freund hinzufügen">+</button>
           </span>
-          <span class="field-hint">E-Mail verknüpft ein Konto, ein Name bleibt lokal in deiner Freundesliste.</span>
+          <span class="field-hint">Freunde erscheinen hier, sobald sie deine Anfrage angenommen haben.</span>
         </label>
+        <p class="friend-feedback" id="tripFriendFeedback" role="status" hidden></p>
         <div class="activity-chip-list friend-chip-list trip-friend-picker trip-friends-picker" id="tripFriendsList"></div>
       </div>
     </section>
@@ -1131,6 +1135,6 @@
       }
     </script>
     <script src="./config/supabase-config.js"></script>
-    <script src="./src/app.js?v=105"></script>
+    <script src="./src/app.js?v=106"></script>
   </body>
 </html>
