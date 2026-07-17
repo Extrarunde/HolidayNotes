@@ -334,8 +334,8 @@ begin
   end if;
 
   if exists (
-    select 1 from public.user_friends
-    where owner_id = auth.uid() and friend_id = matched_user_id
+    select 1 from public.user_friends as uf
+    where uf.owner_id = auth.uid() and uf.friend_id = matched_user_id
   ) then
     response_status := 'accepted';
   else
