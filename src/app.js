@@ -18,6 +18,8 @@ let cloudIsSaving = false;
 let cloudIsLoading = false;
 let pendingCloudReload = false;
 let pendingCloudSave = false;
+let cloudMutationVersion = 0;
+let ignoreCloudChangesUntil = 0;
 let currentProfile = null;
 let authMode = "login";
 let authRecoveryMode = false;
@@ -4747,6 +4749,7 @@ function renderPeople(trip) {
 }
 
 function commit() {
+  cloudMutationVersion += 1;
   saveState();
   render();
   scheduleCloudSave();
@@ -5324,6 +5327,7 @@ async function uploadStateToCloud() {
   }
   normalizeIdsForCloud();
   cloudIsSaving = true;
+  const uploadedMutationVersion = cloudMutationVersion;
   setCloudStatus("Speichere deine Listen...", "online");
 
   const cloudTrips = actualTrips();
@@ -5442,12 +5446,22 @@ async function uploadStateToCloud() {
     if (error) throwCloudError(error);
   }
 
+  cloudTrips.forEach((trip) => {
+    if (!trip.ownerId) trip.ownerId = currentUser.id;
+    if (!trip.currentUserRole) trip.currentUserRole = "owner";
+  });
   saveState();
   cloudIsSaving = false;
   cloudSyncEnabled = true;
-  pendingCloudSave = false;
+  ignoreCloudChangesUntil = Date.now() + 2200;
+  pendingCloudReload = false;
   subscribeToCloudChanges();
-  await loadStateFromCloud("Deine Listen sind gespeichert.");
+  if (cloudMutationVersion > uploadedMutationVersion) {
+    pendingCloudSave = true;
+    scheduleCloudSave();
+    return;
+  }
+  pendingCloudSave = false;
 }
 
 async function loadStateFromCloud(successMessage = "Daten geladen.") {
@@ -5605,7 +5619,11 @@ async function getExistingCloudTripIds() {
 }
 
 function scheduleCloudSave() {
-  if (!cloudSyncEnabled || !currentUser || cloudIsSaving || cloudIsLoading) return;
+  if (!cloudSyncEnabled || !currentUser) return;
+  if (cloudIsSaving || cloudIsLoading) {
+    pendingCloudSave = true;
+    return;
+  }
   if (!navigator.onLine) {
     pendingCloudSave = true;
     setCloudStatus("Offline gespeichert. Wird automatisch synchronisiert, sobald du online bist.", "local");
@@ -5619,11 +5637,12 @@ function scheduleCloudSave() {
         setCloudStatus("Änderungen gespeichert.", "online");
       })
       .catch((error) => console.error(error));
-  }, 900);
+  }, 1600);
 }
 
 function scheduleCloudReload() {
   if (!cloudSyncEnabled || !currentUser) return;
+  if (Date.now() < ignoreCloudChangesUntil) return;
   if (cloudIsSaving || cloudIsLoading) {
     pendingCloudReload = true;
     return;
@@ -5739,6 +5758,7 @@ async function initCloud() {
   if (!supabaseClient) return;
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     try {
+      if (event === "INITIAL_SESSION") return;
       currentUser = session?.user || null;
       if (!currentUser) {
         currentProfile = null;
