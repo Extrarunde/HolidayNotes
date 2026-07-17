@@ -5411,8 +5411,9 @@ async function uploadStateToCloud() {
     if (error) throwCloudError(error);
   }
 
-  for (const trip of cloudTrips) {
-    const { error } = await supabaseClient.from("trip_items").delete().eq("trip_id", trip.id);
+  const cloudTripIds = cloudTrips.map((trip) => trip.id);
+  if (cloudTripIds.length) {
+    const { error } = await supabaseClient.from("trip_items").delete().in("trip_id", cloudTripIds);
     if (error) throwCloudError(error);
   }
 
@@ -5436,8 +5437,8 @@ async function uploadStateToCloud() {
     }
   }
 
-  for (const trip of cloudTrips) {
-    const { error } = await supabaseClient.from("activity").delete().eq("trip_id", trip.id);
+  if (cloudTripIds.length) {
+    const { error } = await supabaseClient.from("activity").delete().in("trip_id", cloudTripIds);
     if (error) throwCloudError(error);
   }
 
