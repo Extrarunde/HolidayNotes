@@ -5554,6 +5554,27 @@ textarea:focus {
   gap: 10px;
 }
 
+@media (max-width: 980px) {
+  .trip-picker-card {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -10px 36px rgba(20, 57, 44, 0.16);
+  }
+
+  .trip-picker-list {
+    max-height: min(58dvh, 510px);
+    padding: 2px 0 4px;
+  }
+
+  .trip-button {
+    min-height: 96px;
+  }
+}
+
 .food-shopping-button::before {
   content: "";
   width: 22px;
