@@ -509,6 +509,7 @@ const els = {
   tripFriendsDialog: document.querySelector("#tripFriendsDialog"),
   tripFriendsBackdrop: document.querySelector("#tripFriendsBackdrop"),
   closeTripFriendsButton: document.querySelector("#closeTripFriendsButton"),
+  addFriendFromTripButton: document.querySelector("#addFriendFromTripButton"),
   tripFriendsDialogTitle: document.querySelector("#tripFriendsDialogTitle"),
   tripFriendsInput: document.querySelector("#tripFriendsInput"),
   addTripFriendsButton: document.querySelector("#addTripFriendsButton"),
@@ -1580,6 +1581,13 @@ function openAccountSettings() {
   els.accountSettingsMount?.querySelectorAll("details.activity-fold").forEach((fold) => {
     fold.open = false;
   });
+}
+
+function openAccountFriendsSettings() {
+  openAccountSettings();
+  const friendsFold = els.accountFriendNameInput?.closest("details.activity-fold");
+  if (friendsFold) friendsFold.open = true;
+  window.setTimeout(() => els.accountFriendNameInput?.focus(), 180);
 }
 
 function closeAccountSettings() {
@@ -6546,6 +6554,10 @@ els.addNewTripFriendButton?.addEventListener("click", () => addFriendFromTripDia
 els.addManageTripFriendButton?.addEventListener("click", () => addFriendFromTripDialog("manage"));
 els.addTripFriendsButton?.addEventListener("click", addFriendFromTripFriendsDialog);
 els.closeTripFriendsButton?.addEventListener("click", closeTripFriendsDialog);
+els.addFriendFromTripButton?.addEventListener("click", () => {
+  closeTripFriendsDialog();
+  openAccountFriendsSettings();
+});
 els.tripFriendsBackdrop?.addEventListener("click", closeTripFriendsDialog);
 els.newTripFriendInput?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;

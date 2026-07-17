@@ -5575,7 +5575,29 @@ textarea:focus {
 
 .trip-friends-card .auth-card-header {
   grid-template-columns: minmax(0, 1fr);
-  padding-right: 44px;
+  padding-right: 92px;
+}
+
+.trip-friends-add-new {
+  position: absolute;
+  top: 12px;
+  right: 62px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #bad8ca;
+  border-radius: 50%;
+  background: #eff8f4;
+  color: var(--accent-strong);
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.trip-friends-add-new:hover {
+  background: #dff2e9;
 }
 
 .trip-friends-add {
