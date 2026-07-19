@@ -54,9 +54,14 @@ let deferredInstallPrompt = null;
 const cloudRequestTimeoutMs = 12000;
 
 localStorage.removeItem("holiday-notes-theme-mode-v1");
-document.documentElement.dataset.theme = "light";
-document.documentElement.dataset.themeMode = "light";
-document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#1f7a63");
+const systemDarkTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+
+function updateSystemThemeColor() {
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", systemDarkTheme?.matches ? "#202725" : "#1f7a63");
+}
+
+updateSystemThemeColor();
+systemDarkTheme?.addEventListener?.("change", updateSystemThemeColor);
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
