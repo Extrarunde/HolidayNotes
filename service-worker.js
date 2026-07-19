@@ -1,10 +1,10 @@
-const cacheName = "holiday-notes-v115";
+const cacheName = "holiday-notes-v116";
 const appShell = [
   "./",
   "./index.html",
   "./offline.html",
-  "./src/styles.css?v=115",
-  "./src/app.js?v=115",
+  "./src/styles.css?v=116",
+  "./src/app.js?v=116",
   "./config/supabase-config.js",
   "./public/vendor/supabase.js",
   "./public/manifest.webmanifest",
@@ -29,28 +29,23 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(cacheName).then((cache) => cache.put("./index.html", copy));
-          return response;
-        })
-        .catch(() => caches.match("./index.html").then((cached) => cached || caches.match("./offline.html")))
-    );
-    return;
-  }
-
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).catch(() => {
-          if (event.request.mode === "navigate") return caches.match("./index.html");
-          return undefined;
-        })
-      );
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+          const copy = response.clone();
+          caches.open(cacheName).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === "navigate") {
+          const page = await caches.match("./index.html");
+          return page || caches.match("./offline.html");
+        }
+        return undefined;
+      })
   );
 });
