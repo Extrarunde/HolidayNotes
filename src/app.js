@@ -54,14 +54,7 @@ let deferredInstallPrompt = null;
 const cloudRequestTimeoutMs = 12000;
 
 localStorage.removeItem("holiday-notes-theme-mode-v1");
-const systemDarkTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
-
-function updateSystemThemeColor() {
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", systemDarkTheme?.matches ? "#202725" : "#1f7a63");
-}
-
-updateSystemThemeColor();
-systemDarkTheme?.addEventListener?.("change", updateSystemThemeColor);
+document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#1f7a63");
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
@@ -2738,7 +2731,7 @@ function createItemRow(item, trip) {
   });
 
   const packButton = row.querySelector(".pack-button");
-  packButton.textContent = "Eingepackt";
+  packButton.textContent = "Gepackt";
   packButton.classList.toggle("active", item.packed);
   packButton.setAttribute("aria-pressed", String(item.packed));
   packButton.disabled = !editable;
@@ -3057,18 +3050,16 @@ function renderTripOverview(trip) {
     <div class="trip-overview-progress" aria-label="Packfortschritt ${progressValue}%">
       <span style="width:${progressValue}%"></span>
     </div>
-    <div class="trip-overview-invite trip-team-panel">
+    <button class="trip-overview-invite trip-team-panel trip-friends-trigger" id="overviewFriendsButton" type="button" aria-label="Freunde für diese Reise auswählen" ${editable ? "" : "disabled"}>
       <div>
         <p class="eyebrow">Gemeinsam packen</p>
         <strong>${friends.length ? `${friends.length} ${friends.length === 1 ? "Freund dabei" : "Freunde dabei"}` : "Freunde einladen"}</strong>
         <span>${escapeHtml(friendText)}</span>
       </div>
-      <button class="trip-code-button trip-friend-add-button" id="overviewFriendsButton" type="button" aria-label="Freunde auswählen" title="Freunde auswählen" ${editable ? "" : "disabled"}>${placeholder ? "Erst Reise anlegen" : "+"}</button>
-    </div>
+    </button>
   `;
   els.tripOverviewPanel.querySelector("#activeTripOverviewButton").addEventListener("click", placeholder ? openNewTripDialog : openTripPicker);
-  els.tripOverviewPanel.querySelector("#overviewFriendsButton").addEventListener("click", (event) => {
-    event.stopPropagation();
+  els.tripOverviewPanel.querySelector("#overviewFriendsButton").addEventListener("click", () => {
     if (!requireSignedInForEdit()) return;
     openTripFriendsDialog(trip.id);
   });
