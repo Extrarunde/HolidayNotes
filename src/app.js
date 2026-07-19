@@ -17,6 +17,7 @@ let cloudIsSaving = false;
 let cloudIsLoading = false;
 let pendingCloudReload = false;
 let pendingCloudSave = false;
+const pendingTripFriendSyncIds = new Set();
 let cloudMutationVersion = 0;
 let ignoreCloudChangesUntil = 0;
 let currentProfile = null;
@@ -94,11 +95,7 @@ async function initializeSupabaseClient() {
           .then(() => {
             if (!window.supabase && typeof globalThis.supabase !== "undefined") window.supabase = globalThis.supabase;
           })
-          .catch(() =>
-            loadScriptOnce("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2").catch(() =>
-              loadScriptOnce("https://unpkg.com/@supabase/supabase-js@2")
-            )
-        ).catch(() => null);
+          .catch(() => null);
       }
       if (!window.supabase && typeof globalThis.supabase !== "undefined") {
         window.supabase = globalThis.supabase;
@@ -1632,6 +1629,7 @@ function createTripFromDialog() {
   applyNewTripTemplate(trip, els.newTripTemplateSelect.value);
   trip.people = tripPeopleFromSelectedFriends(selectedFriendsFromPicker(els.newTripFriendsList), trip);
   trip.friendIds = selectedFriendIdsFromPicker(els.newTripFriendsList);
+  if (trip.friendIds.length) pendingTripFriendSyncIds.add(trip.id);
   state.trips = actualTrips();
   state.trips.unshift(trip);
   state.activeTripId = trip.id;
@@ -2275,8 +2273,10 @@ async function removeFriendFromAccount(friend, friendId = "") {
     }
   }
   state.trips.forEach((trip) => {
+    const hadFriend = friendId && (trip.friendIds || []).includes(friendId);
     trip.people = (trip.people || []).filter((person) => normalizeFriendName(displayAssignee(person)).toLowerCase() !== target);
     if (friendId) trip.friendIds = (trip.friendIds || []).filter((id) => id !== friendId);
+    if (hadFriend) pendingTripFriendSyncIds.add(trip.id);
   });
   commit();
   syncAccountFriendsToProfile().catch((error) => console.warn("Freundeliste konnte nicht synchronisiert werden.", error));
@@ -3147,8 +3147,12 @@ function saveTripFriendsDialog(options = {}) {
   if (!requireSignedInForEdit()) return;
   const trip = state.trips.find((entry) => entry.id === editingTripFriendsId);
   if (!trip) return;
+  const nextFriendIds = selectedFriendIdsFromPicker(els.tripFriendsList);
+  if (nextFriendIds.join(",") !== (trip.friendIds || []).filter(isUuid).join(",")) {
+    pendingTripFriendSyncIds.add(trip.id);
+  }
   trip.people = tripPeopleFromSelectedFriends(selectedFriendsFromPicker(els.tripFriendsList), trip);
-  trip.friendIds = selectedFriendIdsFromPicker(els.tripFriendsList);
+  trip.friendIds = nextFriendIds;
   if (options.close) closeTripFriendsDialog();
   commit();
   setCloudStatus("Freunde gespeichert.", currentUser ? "online" : "local");
@@ -3180,8 +3184,12 @@ function saveManageTripDialog(options = {}) {
   trip.travelMethod = els.manageDialogTripTravelMethod.value || "";
   trip.activities = [...manageTripActivities];
   trip.smartContext = readManageTripSmartContext();
+  const nextFriendIds = selectedFriendIdsFromPicker(els.manageDialogTripFriendsList);
+  if (nextFriendIds.join(",") !== (trip.friendIds || []).filter(isUuid).join(",")) {
+    pendingTripFriendSyncIds.add(trip.id);
+  }
   trip.people = tripPeopleFromSelectedFriends(selectedFriendsFromPicker(els.manageDialogTripFriendsList), trip);
-  trip.friendIds = selectedFriendIdsFromPicker(els.manageDialogTripFriendsList);
+  trip.friendIds = nextFriendIds;
   if (shouldClose) addActivityToTrip(trip, "Reise bearbeitet");
   if (shouldClose) closeManageTripDialog();
   commit();
@@ -5377,7 +5385,8 @@ async function uploadStateToCloud() {
     setCloudStatus("Cloud gespeichert. Gerichte werden vollständig synchronisiert, sobald das neue SQL ausgeführt wurde.", "online");
   } else if (tripsError) throwCloudError(tripsError);
 
-  for (const trip of cloudTrips) {
+  const tripsWithChangedFriends = cloudTrips.filter((trip) => pendingTripFriendSyncIds.has(trip.id));
+  for (const trip of tripsWithChangedFriends) {
     if (trip.ownerId && trip.ownerId !== currentUser.id) continue;
     const friendIds = Array.from(new Set((trip.friendIds || []).filter(isUuid)));
     const { error } = await supabaseClient.rpc("sync_trip_friends", {
@@ -5385,6 +5394,7 @@ async function uploadStateToCloud() {
       friend_user_ids: friendIds
     });
     if (error && !isMissingCloudFieldError(error) && error.code !== "PGRST202") throwCloudError(error);
+    pendingTripFriendSyncIds.delete(trip.id);
   }
 
   if (globalItems.length) {
@@ -6126,6 +6136,7 @@ els.addPersonForm.addEventListener("submit", async (event) => {
   trip.people = tripPeopleFromSelectedFriends([...(trip.people || []), addedName], trip);
   const linkedAccount = friendOptions().find((entry) => entry.name.toLowerCase() === addedName.toLowerCase() && entry.id);
   if (linkedAccount) trip.friendIds = Array.from(new Set([...(trip.friendIds || []), linkedAccount.id]));
+  if (linkedAccount) pendingTripFriendSyncIds.add(trip.id);
   addActivityToTrip(trip, `${addedName} zur Reise hinzugefügt`);
   commit();
 });

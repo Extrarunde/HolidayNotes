@@ -12,7 +12,7 @@
     <link rel="manifest" href="./public/manifest.webmanifest" />
     <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./src/styles.css?v=116" />
+    <link rel="stylesheet" href="./src/styles.css?v=117" />
   </head>
   <body>
     <main class="app-shell">
@@ -1099,22 +1099,7 @@
     </template>
 
     <script src="./public/vendor/supabase.js"></script>
-    <script>
-      if (!window.supabase && typeof supabase !== "undefined") {
-        window.supabase = supabase;
-      }
-    </script>
-    <script>
-      if (!window.supabase) {
-        document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
-      }
-    </script>
-    <script>
-      if (!window.supabase) {
-        document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
-      }
-    </script>
     <script src="./config/supabase-config.js"></script>
-    <script src="./src/app.js?v=116"></script>
+    <script src="./src/app.js?v=117"></script>
   </body>
 </html>
