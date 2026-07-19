@@ -15,23 +15,6 @@
   --shadow: 0 18px 50px rgba(22, 34, 28, 0.1);
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #3a3d3f;
-  --sidebar: #424547;
-  --surface: #4a4d50;
-  --surface-soft: #55595c;
-  --line: #686d70;
-  --text: #f6f7f7;
-  --muted: #d0d4d5;
-  --accent: #75d0aa;
-  --accent-strong: #a8e7cb;
-  --blue: #b4d1ef;
-  --warm: #f0bc8e;
-  --danger: #ff9a9a;
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -141,72 +124,6 @@ textarea {
   padding: 12px;
   resize: vertical;
   line-height: 1.4;
-}
-
-:root[data-theme="dark"] button,
-:root[data-theme="dark"] .file-button,
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] select,
-:root[data-theme="dark"] textarea,
-:root[data-theme="dark"] .auth-card,
-:root[data-theme="dark"] .onboarding-card,
-:root[data-theme="dark"] .panel,
-:root[data-theme="dark"] .content-fold,
-:root[data-theme="dark"] .list-group,
-:root[data-theme="dark"] .timeline-panel,
-:root[data-theme="dark"] .trip-detail-panel,
-:root[data-theme="dark"] .trip-overview-panel,
-:root[data-theme="dark"] .view-head,
-:root[data-theme="dark"] .shopping-head,
-:root[data-theme="dark"] .food-head,
-:root[data-theme="dark"] .item-row,
-:root[data-theme="dark"] .meal-card,
-:root[data-theme="dark"] .activity-fold,
-:root[data-theme="dark"] .template-card,
-:root[data-theme="dark"] .profile-summary-card,
-:root[data-theme="dark"] .invite-join-card,
-:root[data-theme="dark"] .invite-empty,
-:root[data-theme="dark"] .invite-box,
-:root[data-theme="dark"] .empty-state {
-  background-color: var(--surface);
-  color: var(--text);
-  border-color: var(--line);
-}
-
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] select,
-:root[data-theme="dark"] textarea {
-  background: #414447;
-}
-
-:root[data-theme="dark"] .login-card,
-:root[data-theme="dark"] .list-group-summary,
-:root[data-theme="dark"] .timeline-body,
-:root[data-theme="dark"] .trip-overview-stats div,
-:root[data-theme="dark"] .pack-progress,
-:root[data-theme="dark"] .food-mode-switch,
-:root[data-theme="dark"] .meal-day-card,
-:root[data-theme="dark"] .meal-builder-row,
-:root[data-theme="dark"] .shopping-item-row,
-:root[data-theme="dark"] .template-overview,
-:root[data-theme="dark"] .category-chip,
-:root[data-theme="dark"] .assignee-chip,
-:root[data-theme="dark"] .filter-toggle-button,
-:root[data-theme="dark"] .filter-segment,
-:root[data-theme="dark"] .filter-chip {
-  background: var(--surface-soft);
-  color: var(--text);
-  border-color: var(--line);
-}
-
-:root[data-theme="dark"] .muted,
-:root[data-theme="dark"] .item-details,
-:root[data-theme="dark"] .activity-list,
-:root[data-theme="dark"] .view-trip-name,
-:root[data-theme="dark"] .trip-card-meta,
-:root[data-theme="dark"] .timeline-body span,
-:root[data-theme="dark"] .timeline-body small {
-  color: var(--muted);
 }
 
 .app-shell {
@@ -5434,53 +5351,6 @@ textarea:focus {
   border-color: #1f7a63;
 }
 
-:root[data-theme="dark"] .toolbar,
-:root[data-theme="dark"] .view-head,
-:root[data-theme="dark"] .shopping-head,
-:root[data-theme="dark"] .food-head,
-:root[data-theme="dark"] .pack-progress,
-:root[data-theme="dark"] .stats,
-:root[data-theme="dark"] .food-kind-switch,
-:root[data-theme="dark"] .shopping-mode-switch,
-:root[data-theme="dark"] .category-picker,
-:root[data-theme="dark"] .filter-panel,
-:root[data-theme="dark"] .meal-day-card,
-:root[data-theme="dark"] .template-card,
-:root[data-theme="dark"] .list-group,
-:root[data-theme="dark"] .empty-state,
-:root[data-theme="dark"] .trip-overview-panel {
-  background: var(--surface);
-  border-color: var(--line);
-  box-shadow: none;
-}
-
-:root[data-theme="dark"] .trip-overview-main {
-  background: var(--surface-soft);
-  border-color: var(--line);
-}
-
-:root[data-theme="dark"] .list-group-summary {
-  background: var(--surface-soft);
-  border-color: var(--line);
-}
-
-:root[data-theme="dark"] .toolbar h2,
-:root[data-theme="dark"] .view-head h2,
-:root[data-theme="dark"] .shopping-head h2,
-:root[data-theme="dark"] .food-head h2,
-:root[data-theme="dark"] .food-section-title h3,
-:root[data-theme="dark"] .meal-day-head strong,
-:root[data-theme="dark"] .list-group-summary span:first-child,
-:root[data-theme="dark"] .trip-overview-main h3,
-:root[data-theme="dark"] .trip-overview-invite strong {
-  color: var(--text);
-}
-
-:root[data-theme="dark"] .trip-overview-main .muted,
-:root[data-theme="dark"] .trip-overview-invite span {
-  color: var(--muted);
-}
-
 .trip-picker-card {
   width: min(960px, calc(100vw - 24px));
   border: 1px solid #bed8cc;
@@ -5716,20 +5586,6 @@ textarea:focus {
   background: #ffffff;
   border-color: #b9d8ca;
   color: #145640;
-}
-
-:root[data-theme="dark"] .trip-button,
-:root[data-theme="dark"] #editActiveTripFromPickerButton {
-  background: var(--surface-soft);
-  border-color: var(--line);
-  color: var(--text);
-  box-shadow: none;
-}
-
-:root[data-theme="dark"] .trip-button .trip-card-title,
-:root[data-theme="dark"] .trip-button .trip-card-meta,
-:root[data-theme="dark"] .trip-button .trip-card-foot {
-  color: var(--text);
 }
 
 .manage-dialog-actions {

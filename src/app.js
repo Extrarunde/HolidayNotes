@@ -1,5 +1,4 @@
 ﻿const storageKey = "holiday-notes-state-v1";
-const themeKey = "holiday-notes-theme-mode-v1";
 const sharedAssigneeValue = "__shared__";
 const channel = "BroadcastChannel" in window ? new BroadcastChannel("holiday-notes-sync") : null;
 const supabaseSettings = window.HOLIDAY_NOTES_SUPABASE || {};
@@ -51,27 +50,13 @@ let localModeToastTimer = null;
 let localModeToastShown = false;
 let appStatusToastTimer = null;
 let announcedFriendRequestIds = new Set();
-const storedThemeMode = localStorage.getItem(themeKey);
-let themeMode = ["light", "dark"].includes(storedThemeMode) ? storedThemeMode : "light";
 let deferredInstallPrompt = null;
 const cloudRequestTimeoutMs = 12000;
 
-function resolvedTheme(mode = themeMode) {
-  return mode === "dark" ? "dark" : "light";
-}
-
-function applyTheme(mode = themeMode) {
-  themeMode = mode === "dark" ? "dark" : "light";
-  localStorage.setItem(themeKey, themeMode);
-  const theme = resolvedTheme(themeMode);
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.dataset.themeMode = themeMode;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#3a3d3f" : "#1f7a63");
-  const select = document.querySelector("#themeModeSelect");
-  if (select) select.value = themeMode;
-}
-
-applyTheme(themeMode);
+localStorage.removeItem("holiday-notes-theme-mode-v1");
+document.documentElement.dataset.theme = "light";
+document.documentElement.dataset.themeMode = "light";
+document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#1f7a63");
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
@@ -717,7 +702,6 @@ const els = {
   accountMenuAvatar: document.querySelector("#accountMenuAvatar"),
   accountProfileButton: document.querySelector("#accountProfileButton"),
   accountSyncButton: document.querySelector("#accountSyncButton"),
-  themeModeSelect: document.querySelector("#themeModeSelect"),
   profileNameInput: document.querySelector("#profileNameInput"),
   profileEmailInput: document.querySelector("#profileEmailInput"),
   changeEmailButton: document.querySelector("#changeEmailButton"),
@@ -6182,10 +6166,6 @@ els.openAuthButton.addEventListener("click", () => {
 });
 mountAccountSettingsPanel();
 updateInstallAppControl();
-if (els.themeModeSelect) {
-  els.themeModeSelect.value = themeMode;
-  els.themeModeSelect.addEventListener("change", () => applyTheme(els.themeModeSelect.value));
-}
 els.userMenuButton.addEventListener("click", (event) => {
   event.preventDefault();
   els.userMenu.open = false;
