@@ -12,7 +12,7 @@
     <link rel="manifest" href="./public/manifest.webmanifest" />
     <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./src/styles.css?v=114" />
+    <link rel="stylesheet" href="./src/styles.css?v=115" />
   </head>
   <body>
     <main class="app-shell">
@@ -419,7 +419,6 @@
                     <input id="profileNameInput" placeholder="Dein Anzeigename" />
                   </label>
                   <button id="saveProfileButton" type="button">Profil speichern</button>
-                  <button class="secondary-danger" id="deleteAccountButton" type="button">Konto dauerhaft löschen</button>
                 </div>
               </details>
               <details class="activity-fold">
@@ -495,6 +494,7 @@
                     <button id="loadFromCloudButton" type="button" hidden>Daten laden</button>
                     <button id="enableLiveSyncButton" type="button" hidden>Automatisch speichern</button>
                     <button class="secondary-danger" id="logoutButton" type="button">Abmelden</button>
+                    <button class="secondary-danger" id="deleteAccountButton" type="button">Konto dauerhaft löschen</button>
                   </div>
                 </div>
               </details>
@@ -1115,6 +1115,6 @@
       }
     </script>
     <script src="./config/supabase-config.js"></script>
-    <script src="./src/app.js?v=114"></script>
+    <script src="./src/app.js?v=115"></script>
   </body>
 </html>

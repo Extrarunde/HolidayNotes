@@ -1,10 +1,10 @@
-const cacheName = "holiday-notes-v114";
+const cacheName = "holiday-notes-v115";
 const appShell = [
   "./",
   "./index.html",
   "./offline.html",
-  "./src/styles.css?v=114",
-  "./src/app.js?v=114",
+  "./src/styles.css?v=115",
+  "./src/app.js?v=115",
   "./config/supabase-config.js",
   "./public/vendor/supabase.js",
   "./public/manifest.webmanifest",

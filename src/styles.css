@@ -5405,6 +5405,8 @@ textarea:focus {
 }
 
 .trip-button .trip-card-progress {
+  width: 100%;
+  justify-self: stretch;
   height: 7px;
   background: #dfece6;
 }
@@ -5427,6 +5429,10 @@ textarea:focus {
 }
 
 @media (max-width: 980px) {
+  #tripPickerDialog {
+    padding: 0;
+  }
+
   .trip-picker-card {
     width: 100vw;
     max-width: 100vw;
