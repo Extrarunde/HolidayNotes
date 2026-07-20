@@ -5944,6 +5944,11 @@ textarea:focus {
   color: #4f6259;
 }
 
+.settings-icon-design {
+  background: #f4eef9;
+  color: #7b4fa3;
+}
+
 .settings-icon-activity {
   background: #f1f2f1;
   color: var(--muted);
@@ -5970,6 +5975,79 @@ textarea:focus {
 .account-settings-grid .activity-fold > summary .settings-summary-main > span:last-child,
 .activity-fold > summary .settings-summary-main > span:last-child {
   display: block !important;
+}
+
+.color-design-fold > summary {
+  cursor: pointer;
+}
+
+.color-design-card {
+  width: min(460px, 100%);
+}
+
+.color-design-mark {
+  background: var(--accent);
+  color: #fff;
+}
+
+.color-design-intro {
+  margin: 0 0 16px;
+  line-height: 1.45;
+}
+
+.color-design-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.color-design-option {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+.color-design-option.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.color-design-swatch {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  background: var(--swatch-color);
+  box-shadow: 0 0 0 1px rgba(23, 33, 28, 0.16);
+}
+
+.color-design-custom-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.color-design-custom-field input[type="color"] {
+  width: 56px;
+  min-width: 56px;
+  height: 42px;
+  min-height: 42px;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.color-design-reset {
+  margin-top: 14px;
 }
 
 .activity-fold .activity-list {

@@ -1,4 +1,7 @@
 ﻿const storageKey = "holiday-notes-state-v1";
+const colorDesignStorageKey = "holiday-notes-accent-color-v1";
+const defaultAccentColor = "#218b70";
+const colorDesignMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const sharedAssigneeValue = "__shared__";
 const channel = "BroadcastChannel" in window ? new BroadcastChannel("holiday-notes-sync") : null;
 const supabaseSettings = window.HOLIDAY_NOTES_SUPABASE || {};
@@ -55,8 +58,61 @@ let deferredInstallPrompt = null;
 const cloudRequestTimeoutMs = 12000;
 
 localStorage.removeItem("holiday-notes-theme-mode-v1");
-document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#1f7a63");
-document.documentElement.style.colorScheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+document.documentElement.style.colorScheme = colorDesignMediaQuery.matches ? "dark" : "light";
+
+function normalizeAccentColor(value) {
+  const color = String(value || "").trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(color)) return color;
+  if (/^#[0-9a-f]{3}$/.test(color)) {
+    return `#${color.slice(1).split("").map((part) => `${part}${part}`).join("")}`;
+  }
+  return defaultAccentColor;
+}
+
+function mixAccentColor(start, end, amount) {
+  const source = normalizeAccentColor(start);
+  const target = normalizeAccentColor(end);
+  const mix = Math.max(0, Math.min(1, amount));
+  const sourceChannels = [1, 3, 5].map((offset) => Number.parseInt(source.slice(offset, offset + 2), 16));
+  const targetChannels = [1, 3, 5].map((offset) => Number.parseInt(target.slice(offset, offset + 2), 16));
+  const channels = sourceChannels.map((channel, index) => Math.round(channel + (targetChannels[index] - channel) * mix));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function savedAccentColor() {
+  return normalizeAccentColor(localStorage.getItem(colorDesignStorageKey));
+}
+
+function renderColorDesignControls(color = savedAccentColor()) {
+  const normalized = normalizeAccentColor(color);
+  document.querySelectorAll("[data-color-design]").forEach((button) => {
+    const active = button.dataset.colorDesign === normalized;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const customInput = document.querySelector("#customAccentColorInput");
+  if (customInput) customInput.value = normalized;
+}
+
+function applyAccentColor(color, { persist = true } = {}) {
+  const normalized = normalizeAccentColor(color);
+  const isDark = colorDesignMediaQuery.matches;
+  const accent = isDark ? mixAccentColor(normalized, "#ffffff", 0.16) : normalized;
+  const accentStrong = isDark ? mixAccentColor(normalized, "#ffffff", 0.56) : mixAccentColor(normalized, "#102d22", 0.42);
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.style.setProperty("--accent-strong", accentStrong);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    meta.setAttribute("content", isDark ? "#111714" : accent);
+  });
+  if (persist) localStorage.setItem(colorDesignStorageKey, normalized);
+  renderColorDesignControls(normalized);
+}
+
+applyAccentColor(savedAccentColor(), { persist: false });
+colorDesignMediaQuery.addEventListener("change", () => {
+  document.documentElement.style.colorScheme = colorDesignMediaQuery.matches ? "dark" : "light";
+  applyAccentColor(savedAccentColor(), { persist: false });
+});
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
@@ -672,6 +728,13 @@ const els = {
   accountSettingsBackdrop: document.querySelector("#accountSettingsBackdrop"),
   closeAccountSettingsButton: document.querySelector("#closeAccountSettingsButton"),
   accountSettingsMount: document.querySelector("#accountSettingsMount"),
+  colorDesignDialog: document.querySelector("#colorDesignDialog"),
+  colorDesignBackdrop: document.querySelector("#colorDesignBackdrop"),
+  closeColorDesignButton: document.querySelector("#closeColorDesignButton"),
+  openColorDesignButton: document.querySelector("#openColorDesignButton"),
+  colorDesignOptions: document.querySelector("#colorDesignOptions"),
+  customAccentColorInput: document.querySelector("#customAccentColorInput"),
+  resetColorDesignButton: document.querySelector("#resetColorDesignButton"),
   authMessage: document.querySelector("#authMessage"),
   authForm: document.querySelector("#authForm"),
   authDisplayNameField: document.querySelector("#authDisplayNameField"),
@@ -1574,6 +1637,18 @@ function openAccountFriendsSettings() {
 
 function closeAccountSettings() {
   if (els.accountSettingsDialog) els.accountSettingsDialog.hidden = true;
+  closeColorDesignDialog();
+}
+
+function openColorDesignDialog() {
+  if (!els.colorDesignDialog) return;
+  renderColorDesignControls();
+  els.colorDesignDialog.hidden = false;
+  window.setTimeout(() => els.customAccentColorInput?.focus(), 0);
+}
+
+function closeColorDesignDialog() {
+  if (els.colorDesignDialog) els.colorDesignDialog.hidden = true;
 }
 
 function mountAccountSettingsPanel() {
@@ -1581,7 +1656,7 @@ function mountAccountSettingsPanel() {
   const sourcePanel = document.querySelector(".team-account-panel");
   if (!sourcePanel) return;
   const folds = Array.from(sourcePanel.querySelectorAll(":scope > details.activity-fold"));
-  folds.slice(0, 6).forEach((fold) => els.accountSettingsMount.append(fold));
+  folds.slice(0, 7).forEach((fold) => els.accountSettingsMount.append(fold));
   setupExclusiveFolds(els.accountSettingsMount);
   sourcePanel.classList.add("activity-only");
   const settingsFold = document.querySelector(".team-settings-fold");
@@ -6206,6 +6281,19 @@ els.closeAuthButton.addEventListener("click", closeAuthDialog);
 els.authBackdrop.addEventListener("click", closeAuthDialog);
 els.closeAccountSettingsButton.addEventListener("click", closeAccountSettings);
 els.accountSettingsBackdrop.addEventListener("click", closeAccountSettings);
+els.openColorDesignButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  openColorDesignDialog();
+});
+els.closeColorDesignButton?.addEventListener("click", closeColorDesignDialog);
+els.colorDesignBackdrop?.addEventListener("click", closeColorDesignDialog);
+els.colorDesignOptions?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-color-design]");
+  if (!button) return;
+  applyAccentColor(button.dataset.colorDesign);
+});
+els.customAccentColorInput?.addEventListener("input", () => applyAccentColor(els.customAccentColorInput.value));
+els.resetColorDesignButton?.addEventListener("click", () => applyAccentColor(defaultAccentColor));
 els.installAppButton?.addEventListener("click", () => {
   installApp().catch((error) => setCloudStatus(friendlyCloudError(error, "App konnte nicht installiert werden."), "error"));
 });
@@ -6219,6 +6307,7 @@ els.deleteAccountButton?.addEventListener("click", () => {
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !els.authDialog.hidden) closeAuthDialog();
   if (event.key === "Escape" && !els.accountSettingsDialog.hidden) closeAccountSettings();
+  if (event.key === "Escape" && !els.colorDesignDialog?.hidden) closeColorDesignDialog();
   if (event.key === "Escape" && !els.newTripDialog.hidden) closeNewTripDialog();
   if (event.key === "Escape" && !els.tripPickerDialog.hidden) closeTripPicker();
   if (event.key === "Escape" && !els.tripFriendsDialog?.hidden) closeTripFriendsDialog();

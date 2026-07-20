@@ -14,7 +14,7 @@
     <link rel="manifest" href="./public/manifest.webmanifest" />
     <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./src/styles.css?v=119" />
+    <link rel="stylesheet" href="./src/styles.css?v=120" />
   </head>
   <body>
     <main class="app-shell">
@@ -464,6 +464,12 @@
                   <button id="installAppButton" type="button" hidden>App installieren</button>
                   <p class="muted" id="installAppHint">Auf dem iPhone kannst du die App über Teilen und „Zum Home-Bildschirm“ installieren.</p>
                 </div>
+              </details>
+              <details class="activity-fold color-design-fold" id="colorDesignFold">
+                <summary id="openColorDesignButton">
+                  <span class="settings-summary-main"><span class="settings-icon settings-icon-design" aria-hidden="true">●</span><span>Farbdesign</span></span>
+                  <span></span>
+                </summary>
               </details>
               <details class="activity-fold">
                 <summary>
@@ -1081,6 +1087,32 @@
       </div>
     </section>
 
+    <section class="trip-dialog color-design-dialog" id="colorDesignDialog" role="dialog" aria-modal="true" aria-labelledby="colorDesignTitle" hidden>
+      <div class="auth-backdrop" id="colorDesignBackdrop"></div>
+      <div class="auth-card color-design-card">
+        <button class="auth-close" id="closeColorDesignButton" type="button" aria-label="Farbdesign schließen">x</button>
+        <div class="auth-card-header">
+          <div class="brand-mark color-design-mark" aria-hidden="true">●</div>
+          <div>
+            <p class="eyebrow">Anzeige</p>
+            <h2 id="colorDesignTitle">Farbdesign</h2>
+          </div>
+        </div>
+        <p class="muted color-design-intro">Wähle die Kontrastfarbe für Schaltflächen, Auswahlfelder und Fortschritte.</p>
+        <div class="color-design-options" id="colorDesignOptions" role="group" aria-label="Kontrastfarbe auswählen">
+          <button class="color-design-option" data-color-design="#218b70" type="button"><span class="color-design-swatch" style="--swatch-color: #218b70"></span><span>Grün</span></button>
+          <button class="color-design-option" data-color-design="#2878b8" type="button"><span class="color-design-swatch" style="--swatch-color: #2878b8"></span><span>Blau</span></button>
+          <button class="color-design-option" data-color-design="#a85c37" type="button"><span class="color-design-swatch" style="--swatch-color: #a85c37"></span><span>Kupfer</span></button>
+          <button class="color-design-option" data-color-design="#9a3f68" type="button"><span class="color-design-swatch" style="--swatch-color: #9a3f68"></span><span>Beere</span></button>
+        </div>
+        <label class="color-design-custom-field">
+          Eigene Kontrastfarbe
+          <input id="customAccentColorInput" type="color" value="#218b70" aria-label="Eigene Kontrastfarbe auswählen" />
+        </label>
+        <button class="ghost-action color-design-reset" id="resetColorDesignButton" type="button">Standardfarbe</button>
+      </div>
+    </section>
+
     <template id="itemTemplate">
       <article class="item-row">
         <div class="item-row-head">
@@ -1102,6 +1134,6 @@
 
     <script src="./public/vendor/supabase.js"></script>
     <script src="./config/supabase-config.js"></script>
-    <script src="./src/app.js?v=119"></script>
+    <script src="./src/app.js?v=120"></script>
   </body>
 </html>
