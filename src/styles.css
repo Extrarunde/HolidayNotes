@@ -19,6 +19,7 @@ html {
   color-scheme: light !important;
   background: #f3f5f6;
   forced-color-adjust: none;
+  touch-action: pan-x pan-y;
 }
 
 * {
@@ -1349,7 +1350,8 @@ details[open] > .list-group-summary::after {
   gap: 12px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
   padding: 2px 2px 12px;
   scrollbar-width: none;

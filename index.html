@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#f3f5f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#111714" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
@@ -14,7 +14,7 @@
     <link rel="manifest" href="./public/manifest.webmanifest" />
     <link rel="icon" href="./public/assets/app-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./public/assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="./src/styles.css?v=121" />
+    <link rel="stylesheet" href="./src/styles.css?v=122" />
   </head>
   <body>
     <main class="app-shell">
@@ -801,14 +801,7 @@
           </label>
           <label hidden>
             Unterteilung
-            <input id="itemDialogGroupInput" list="itemGroupSuggestions" placeholder="z. B. Oberteile oder Unterteile" />
-            <datalist id="itemGroupSuggestions">
-              <option value="Oberteile"></option>
-              <option value="Unterteile"></option>
-              <option value="Schuhe"></option>
-              <option value="Accessoires"></option>
-              <option value="Allgemein"></option>
-            </datalist>
+            <input id="itemDialogGroupInput" placeholder="z. B. Oberteile oder Unterteile" />
             <div class="group-chip-row" data-target="itemDialogGroupInput" aria-label="Unterteilung schnell auswählen">
               <button type="button" data-group="Allgemein">Allgemein</button>
               <button type="button" data-group="Oberteile">Oberteile</button>
@@ -987,7 +980,7 @@
           </label>
           <label hidden>
             Unterteilung
-            <input id="settingsItemGroupInput" list="itemGroupSuggestions" placeholder="z. B. Oberteile oder Unterteile" />
+            <input id="settingsItemGroupInput" placeholder="z. B. Oberteile oder Unterteile" />
             <div class="group-chip-row" data-target="settingsItemGroupInput" aria-label="Unterteilung schnell auswählen">
               <button type="button" data-group="Allgemein">Allgemein</button>
               <button type="button" data-group="Oberteile">Oberteile</button>
@@ -1134,6 +1127,6 @@
 
     <script src="./public/vendor/supabase.js"></script>
     <script src="./config/supabase-config.js"></script>
-    <script src="./src/app.js?v=121"></script>
+    <script src="./src/app.js?v=122"></script>
   </body>
 </html>

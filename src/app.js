@@ -205,7 +205,7 @@ window.addEventListener("appinstalled", () => {
   setCloudStatus("App wurde installiert.", currentUser ? "online" : "local");
 });
 
-const categories = ["Kleidung", "Dokumente", "Technik", "Hygiene", "Medizin", "Nahrung", "Freizeit"];
+const categories = ["Allgemein", "Kleidung", "Dokumente", "Technik", "Hygiene", "Medizin", "Nahrung", "Freizeit"];
 const tripIconChoices = ["", "☀️", "🏖️", "🏔️", "🏕️", "🏙️", "✈️", "❄️"];
 const mealSlots = [
   { id: "breakfast", label: "Frühstück" },
@@ -800,12 +800,31 @@ const els = {
 ].filter(Boolean).forEach((control) => els.floatingActionLayer?.append(control));
 document.body.dataset.activeView = currentView;
 
+function disableBrowserAutofill() {
+  const credentialFields = new Set([
+    els.authEmailInput,
+    els.authPasswordInput,
+    els.authPasswordConfirmInput,
+    els.profilePasswordInput,
+    els.profilePasswordConfirmInput
+  ]);
+  document.querySelectorAll("input, textarea").forEach((input) => {
+    if (credentialFields.has(input)) return;
+    if (["checkbox", "color", "date", "file", "hidden", "radio"].includes(input.type)) return;
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("autocorrect", "off");
+    input.spellcheck = false;
+  });
+}
+
+disableBrowserAutofill();
+
 function updateConnectionBanner() {
   if (els.connectionBanner) els.connectionBanner.hidden = true;
   const online = navigator.onLine;
-  showStatusToast(online ? (currentUser ? "Cloud erreichbar" : "Lokal gespeichert - nicht eingeloggt") : "Offline - lokal gespeichert", online && currentUser ? "online" : "local");
+  if (!online) showStatusToast("Du bist offline.", "local");
   if (online && pendingCloudSave && cloudSyncEnabled && currentUser) scheduleCloudSave();
-  if (els.connectionBanner) els.connectionBanner.textContent = "Offline · lokal gespeichert";
+  if (els.connectionBanner) els.connectionBanner.textContent = "Du bist offline.";
   els.connectionBanner.hidden = true;
 }
 
@@ -836,7 +855,7 @@ function updateInstallAppControl() {
 function showStatusToast(message, type = "local") {
   if (!els.appStatusToast || !message) return;
   window.clearTimeout(appStatusToastTimer);
-  els.appStatusToast.textContent = message;
+  els.appStatusToast.textContent = compactStatusText(message, 76);
   els.appStatusToast.hidden = false;
   els.appStatusToast.classList.toggle("online", type === "online");
   els.appStatusToast.classList.toggle("error", type === "error");
@@ -851,7 +870,7 @@ function showStatusToast(message, type = "local") {
 }
 
 function showLocalModeToast() {
-  showStatusToast("Nicht eingeloggt - lokal gespeichert", "local");
+  showStatusToast("Nicht eingeloggt.", "local");
   return;
   if (!els.localModeToast) return;
   window.clearTimeout(localModeToastTimer);
@@ -1012,8 +1031,22 @@ function openTemplatesArea() {
   window.setTimeout(() => els.templatesFold.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
 }
 
+function normalizeItemPlacement(item) {
+  item.category = categories.includes(item.category) ? item.category : "Allgemein";
+  const group = String(item.group || "").trim();
+  const inferredGroup = group || estimateItemGroup(item.name, item.category);
+  if (item.category === "Kleidung" && inferredGroup === "Allgemein") {
+    item.category = "Allgemein";
+    item.group = "";
+    return item;
+  }
+  item.group = group;
+  return item;
+}
+
 function makeItem(name, category, assignee = "Ich", options = {}) {
-  return {
+  const hasGroup = Object.prototype.hasOwnProperty.call(options, "group");
+  const item = {
     id: crypto.randomUUID(),
     name,
     category,
@@ -1024,9 +1057,10 @@ function makeItem(name, category, assignee = "Ich", options = {}) {
     bought: false,
     quantity: "",
     note: "",
-    group: "",
+    group: hasGroup ? options.group : estimateItemGroup(name, category),
     ...options
   };
+  return normalizeItemPlacement(item);
 }
 
 function loadState() {
@@ -1084,6 +1118,8 @@ function withDefaultGlobalItems(savedState) {
     trip.smartContext = normalizeSmartContext(trip.smartContext);
     trip.meals ||= [];
     trip.people ||= ["Ich"];
+    trip.items ||= [];
+    trip.items.forEach(normalizeItemPlacement);
     trip.meals.forEach((meal) => {
       meal.date ||= "";
       meal.slot ||= "dinner";
@@ -1386,7 +1422,7 @@ function canEditActiveTrip() {
 
 function requireSignedInForEdit() {
   if (canEditLists()) return true;
-  setCloudStatus("Bitte melde dich an, um Änderungen zu speichern.", "local");
+  setCloudStatus("Bitte anmelden.", "local");
   openAuthDialog();
   return false;
 }
@@ -1394,7 +1430,7 @@ function requireSignedInForEdit() {
 function requireEditableActiveTrip() {
   if (!requireSignedInForEdit()) return false;
   if (hasEditableActiveTrip()) return true;
-  setCloudStatus("Lege zuerst eine Reise an, bevor du Einträge hinzufügen kannst.", "local");
+  setCloudStatus("Erst eine Reise anlegen.", "local");
   activateView("manage");
   openNewTripDialog();
   return false;
@@ -1538,7 +1574,7 @@ function openItemSettingsDialog(item) {
   els.settingsItemQuantityInput.value = item.quantity || "";
   els.settingsItemGroupInput.value = item.group || estimateItemGroup(item.name, item.category);
   els.settingsItemCategorySelect.innerHTML = categories.map((category) => `<option>${escapeHtml(category)}</option>`).join("");
-  els.settingsItemCategorySelect.value = categories.includes(item.category) ? item.category : "Freizeit";
+  els.settingsItemCategorySelect.value = categories.includes(item.category) ? item.category : "Allgemein";
   const people = peopleForAssignment();
   els.settingsItemAssigneeSelect.innerHTML = assigneeOptionsHtml(people);
   els.settingsItemAssigneeSelect.value = item.assignee === sharedAssigneeValue ? sharedAssigneeValue : displayAssignee(item.assignee);
@@ -1558,14 +1594,16 @@ function saveItemSettingsDialog() {
   const name = els.settingsItemNameInput.value.trim();
   if (!item || !name) return;
   const category = els.settingsItemCategorySelect.value;
-  rememberItemCategory(name, category);
-  Object.assign(item, {
+  const updatedItem = normalizeItemPlacement({
+    ...item,
     name,
     quantity: els.settingsItemQuantityInput.value.trim(),
     group: els.settingsItemGroupInput.value.trim(),
     category,
     assignee: els.settingsItemAssigneeSelect.value || defaultAssignee()
   });
+  rememberItemCategory(name, updatedItem.category);
+  Object.assign(item, updatedItem);
   addActivity(`${name} bearbeitet`);
   closeItemSettingsDialog();
   commit();
@@ -2194,10 +2232,11 @@ function friendRequests() {
 }
 
 function setFriendFeedback(message = "", type = "info") {
+  const feedback = message ? friendlyStatusMessage(message, "Freundesfunktion nicht verfügbar.") : "";
   [els.accountFriendFeedback, els.tripFriendFeedback].forEach((element) => {
     if (!element) return;
-    element.hidden = !message;
-    element.textContent = message;
+    element.hidden = !feedback;
+    element.textContent = compactStatusText(feedback, 88);
     element.classList.toggle("error", type === "error");
     element.classList.toggle("success", type === "success");
   });
@@ -2644,7 +2683,7 @@ function estimateCategory(name) {
     ["Freizeit", ["buch", "spiel", "zelt", "schlafsack", "ball", "brille", "tasche"]]
   ];
   const match = rules.find(([, words]) => words.some((word) => value.includes(word)));
-  return match ? { category: match[0], confident: true } : { category: "Freizeit", confident: false };
+  return match ? { category: match[0], confident: true } : { category: "Allgemein", confident: false };
 }
 
 function rememberItemCategory(name, category) {
@@ -2700,7 +2739,7 @@ function renderTripItems(trip) {
     slide.dataset.category = category;
     const groupedItems = groupBy(categoryItems, (item) => item.group || estimateItemGroup(item.name, category));
     const groupEntries = Object.entries(groupedItems);
-    const showSubgroups = groupEntries.length > 1 || groupEntries.some(([group]) => group !== "Allgemein");
+    const showSubgroups = groupEntries.length > 1 || groupEntries.some(([group]) => group && group !== "Allgemein");
     const itemSections = showSubgroups
       ?
       groupEntries.map(([group, groupItems]) => {
@@ -2788,10 +2827,8 @@ function createItemRow(item, trip) {
   row.querySelector(".item-details").innerHTML = itemDetailsHtml(item);
   const toggleButton = row.querySelector(".item-toggle");
   const controls = row.querySelector(".item-controls");
-  let swipeHandled = false;
   toggleButton.addEventListener("click", (event) => {
     event.stopPropagation();
-    if (swipeHandled) return;
     if (!editable) {
       setCloudStatus("Melde dich an, um Einträge zu bearbeiten.", "local");
       return;
@@ -2824,33 +2861,6 @@ function createItemRow(item, trip) {
     controls.hidden = true;
     row.classList.remove("expanded");
     updateItem(item.id, { shopping: !item.shopping }, `${item.name} für Einkauf aktualisiert`);
-  });
-
-  let swipeStart = null;
-  row.addEventListener("pointerdown", (event) => {
-    if (!editable || !event.isPrimary || event.button !== 0) return;
-    if (event.target.closest(".pack-button, .buy-button, input, select, textarea, a")) return;
-    event.stopPropagation();
-    swipeStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: Date.now() };
-    row.setPointerCapture?.(event.pointerId);
-  });
-  row.addEventListener("pointerup", (event) => {
-    if (!swipeStart || event.pointerId !== swipeStart.pointerId) return;
-    const deltaX = event.clientX - swipeStart.x;
-    const deltaY = event.clientY - swipeStart.y;
-    const elapsed = Date.now() - swipeStart.time;
-    swipeStart = null;
-    if (elapsed > 700 || deltaX > -72 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
-    swipeHandled = true;
-    window.setTimeout(() => { swipeHandled = false; }, 0);
-    if (item.shopping) {
-      setCloudStatus(`${item.name} steht schon auf der Einkaufsliste.`, "online");
-      return;
-    }
-    updateItem(item.id, { shopping: true, bought: false }, `${item.name} zur Einkaufsliste hinzugefügt`);
-  });
-  row.addEventListener("pointercancel", () => {
-    swipeStart = null;
   });
 
   return row;
@@ -2949,6 +2959,7 @@ function updateItem(id, patch, activity) {
   const item = trip.items.find((entry) => entry.id === id);
   if (!item) return;
   Object.assign(item, patch);
+  normalizeItemPlacement(item);
   addActivity(activity);
   commit();
 }
@@ -3054,7 +3065,7 @@ function saveActiveTripAsTemplate() {
     shopping: Boolean(item.shopping)
   }));
   if (!items.length) {
-    setCloudStatus("Die aktive Reise hat noch keine Gegenstände für eine Vorlage.", currentUser ? "online" : "local");
+    setCloudStatus("Keine Gegenstände für Vorlage.", currentUser ? "online" : "local");
     return;
   }
   state.customTemplates ||= [];
@@ -3119,8 +3130,8 @@ function renderTripOverview(trip) {
     <button class="trip-overview-main trip-overview-clickable" id="activeTripOverviewButton" type="button" aria-label="${placeholder ? "Reise anlegen" : "Aktive Reise wechseln"}">
       <div>
         <p class="eyebrow">${placeholder ? "Noch keine Reise" : "Aktive Reise"}</p>
-        <h3>${placeholder ? "Erste Reise anlegen" : escapeHtml(trip.name)}</h3>
-        <p class="muted">${placeholder ? "Lege zuerst eine Reise an, bevor du sie bearbeitest." : `${escapeHtml(displayTripDates(trip))} · ${escapeHtml(durationText)}`}</p>
+        <h3>${placeholder ? "Keine Reise" : escapeHtml(trip.name)}</h3>
+        <p class="muted">${placeholder ? "Reise anlegen." : `${escapeHtml(displayTripDates(trip))} · ${escapeHtml(durationText)}`}</p>
       </div>
       ${overviewIcon ? `<span class="trip-overview-mark" aria-hidden="true">${escapeHtml(overviewIcon)}</span>` : ""}
     </button>
@@ -3657,7 +3668,7 @@ function renderMealsCompact(trip) {
   const isSnackView = mealKind === "snack";
   if (els.mealListTitle) els.mealListTitle.textContent = isSnackView ? "Snacks" : "Gerichte";
   if (isPlaceholderTrip(trip)) {
-    els.mealList.innerHTML = `<div class="empty-state">Lege zuerst eine Reise an, dann kannst du ${isSnackView ? "Snacks" : "Gerichte"} hinzufügen.</div>`;
+    els.mealList.innerHTML = `<div class="empty-state">Erst eine Reise anlegen.</div>`;
     return;
   }
   const meals = (trip.meals || []).filter((meal) => (isSnackView ? meal.type === "snack" : meal.type !== "snack"));
@@ -4820,7 +4831,7 @@ function commit() {
   scheduleCloudSave();
 }
 
-function friendlyStatusMessage(message, fallback = "Aktion konnte gerade nicht abgeschlossen werden.") {
+function friendlyStatusMessage(message, fallback = "Aktion nicht möglich.") {
   const text = String(message || "").trim();
   const normalized = text.toLowerCase();
   if (
@@ -4832,35 +4843,56 @@ function friendlyStatusMessage(message, fallback = "Aktion konnte gerade nicht a
   ) {
     return fallback;
   }
+  if (normalized.includes("duplicate key") || normalized.includes("unique constraint")) {
+    return "Eintrag existiert bereits.";
+  }
+  if (normalized.includes("foreign key")) {
+    return "Reise nicht gefunden.";
+  }
+  if (normalized.includes("row-level security") || normalized.includes("new row violates")) {
+    return "Änderung nicht erlaubt.";
+  }
+  if (normalized.includes("friend_id is ambiguous") || normalized.includes("structure of query does not match function result type")) {
+    return "Freundesfunktion wird aktualisiert.";
+  }
+  if (normalized.includes("jwt expired") || normalized.includes("invalid jwt")) {
+    return "Bitte erneut anmelden.";
+  }
   return text;
 }
 
-function friendlyCloudError(error, fallback = "Cloud gerade nicht erreichbar. Deine Listen bleiben lokal gespeichert.") {
+function compactStatusText(message, maxLength = 88) {
+  const text = String(message || "").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
+}
+
+function friendlyCloudError(error, fallback = "Cloud nicht erreichbar.") {
   return friendlyStatusMessage(error?.message || error, fallback);
 }
 
 function setCloudStatus(message, type = currentUser ? "online" : "local") {
   const effectiveType = type === "online" && !currentUser ? "local" : type;
-  const statusMessage = friendlyStatusMessage(message, "Cloud gerade nicht erreichbar. Deine Listen bleiben lokal gespeichert.");
+  const statusMessage = compactStatusText(friendlyStatusMessage(message, "Cloud nicht erreichbar."), 88);
   els.cloudStatus.textContent = statusMessage;
   els.cloudBadge.textContent = effectiveType === "online" ? "Cloud" : effectiveType === "error" ? "Fehler" : "Lokal";
   els.cloudBadge.classList.toggle("online", effectiveType === "online");
   els.cloudBadge.classList.toggle("error", effectiveType === "error");
   if (els.syncStatusText) {
     els.syncStatusText.textContent = pendingCloudSave
-      ? "Änderungen sind lokal gespeichert und warten auf die Cloud-Synchronisierung."
+      ? "Wartet auf Verbindung."
       : effectiveType === "online"
-        ? "Lokale Änderungen und Cloud-Daten sind synchronisiert."
+        ? "Synchronisiert."
         : effectiveType === "error"
-          ? `Synchronisierung nicht abgeschlossen: ${statusMessage}`
-          : "Änderungen sind auf diesem Gerät gespeichert und werden bei bestehender Verbindung automatisch synchronisiert.";
+          ? statusMessage
+          : "Lokal gespeichert.";
   }
   showStatusToast(statusMessage, effectiveType);
 }
 
 function setAuthMessage(message, type = "info") {
-  els.authMessage.hidden = !message;
-  els.authMessage.textContent = message;
+  const authMessage = message ? friendlyStatusMessage(message, "Anmeldung nicht möglich.") : "";
+  els.authMessage.hidden = !authMessage;
+  els.authMessage.textContent = compactStatusText(authMessage, 88);
   els.authMessage.classList.toggle("error", type === "error");
   els.authMessage.classList.toggle("success", type === "success");
 }
@@ -5413,7 +5445,7 @@ async function uploadStateToCloud() {
   if (!ensureCloudReady()) return;
   if (!navigator.onLine) {
     pendingCloudSave = true;
-    setCloudStatus("Offline gespeichert. Wird automatisch synchronisiert, sobald du online bist.", "local");
+    setCloudStatus("Du bist offline.", "local");
     return;
   }
   normalizeIdsForCloud();
@@ -5595,7 +5627,7 @@ async function loadStateFromCloud(successMessage = "Daten geladen.") {
 
   if (!trips.length) {
     cloudIsLoading = false;
-    setCloudStatus("Noch keine gespeicherten Reisen gefunden. Du kannst deine aktuelle Liste speichern.", "online");
+    setCloudStatus("Keine Reise in der Cloud.", "online");
     return;
   }
 
@@ -5650,7 +5682,7 @@ async function loadStateFromCloud(successMessage = "Daten geladen.") {
     trips: trips.map((trip) => {
       const items = tripItems
         .filter((item) => item.trip_id === trip.id)
-        .map((item) => ({
+        .map((item) => normalizeItemPlacement({
           id: item.id,
           name: item.name,
           category: item.category,
@@ -5720,7 +5752,7 @@ function scheduleCloudSave() {
   }
   if (!navigator.onLine) {
     pendingCloudSave = true;
-    setCloudStatus("Offline gespeichert. Wird automatisch synchronisiert, sobald du online bist.", "local");
+    setCloudStatus("Du bist offline.", "local");
     return;
   }
   window.clearTimeout(cloudSaveTimer);
@@ -5825,7 +5857,7 @@ function throwCloudError(error) {
   cloudIsSaving = false;
   cloudIsLoading = false;
   pendingCloudReload = false;
-  setCloudStatus(friendlyCloudError(error, "Cloud gerade nicht erreichbar. Deine Listen bleiben lokal gespeichert."), "error");
+  setCloudStatus(friendlyCloudError(error, "Cloud nicht erreichbar."), "error");
   throw error;
 }
 
