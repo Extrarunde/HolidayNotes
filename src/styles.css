@@ -60,25 +60,79 @@ body {
   forced-color-adjust: none;
 }
 
-/* Keep the interface light even when the device prefers a dark system theme. */
+/* A system-dark fallback with high contrast for devices that force dark webpages. */
 @media (prefers-color-scheme: dark) {
   :root {
-    color-scheme: light !important;
-    --bg: #f3f5f6;
-    --sidebar: #ffffff;
-    --surface: #ffffff;
-    --surface-soft: #f8faf8;
-    --line: #dce3df;
-    --text: #17211c;
-    --muted: #64706a;
-    --accent: #218b70;
-    --accent-strong: #126a50;
+    color-scheme: dark !important;
+    --bg: #111714;
+    --sidebar: #17201c;
+    --surface: #1d2823;
+    --surface-soft: #243029;
+    --line: #587066;
+    --text: #ffffff;
+    --muted: #d0ddd6;
+    --accent: #43c99c;
+    --accent-strong: #9aefd0;
+    --blue: #8fc4ff;
+    --warm: #ffc48c;
+    --danger: #ffaaaa;
   }
 
   html,
   body {
-    background: #f3f5f6 !important;
-    color: #17211c !important;
+    color-scheme: dark !important;
+    background: #111714 !important;
+    color: #ffffff !important;
+  }
+
+  button,
+  .file-button,
+  input,
+  select,
+  textarea,
+  .login-card .auth-form input,
+  .password-field input {
+    border-color: #587066;
+    background: #1d2823;
+    color: #ffffff !important;
+  }
+
+  .primary-action,
+  .friend-request-actions [data-friend-response="accept"],
+  .floating-add-button,
+  .pack-button,
+  .buy-button,
+  .shopping-done-button {
+    background: #187b5d;
+    border-color: #43c99c;
+    color: #ffffff !important;
+  }
+
+  .primary-action:hover,
+  .floating-add-button:hover {
+    background: #239d77;
+  }
+
+  .ghost-action,
+  .template-from-item-button,
+  .password-field button,
+  .account-settings-tab,
+  .filter-button,
+  .item-assignee-button {
+    background: #243029;
+    border-color: #587066;
+    color: #ffffff !important;
+  }
+
+  .app-status-toast,
+  .friend-feedback,
+  #cloudBadge,
+  .trip-duration,
+  .item-assignee-button.active,
+  .travel-method-button.active {
+    border-color: #5d8a79;
+    background: #213b31;
+    color: #ffffff !important;
   }
 }
 
