@@ -55,6 +55,7 @@ let localModeToastShown = false;
 let appStatusToastTimer = null;
 let announcedFriendRequestIds = new Set();
 let deferredInstallPrompt = null;
+let profileLoadPromise = null;
 const cloudRequestTimeoutMs = 12000;
 
 localStorage.removeItem("holiday-notes-theme-mode-v1");
@@ -176,12 +177,14 @@ function authUnavailableMessage() {
 }
 
 function withTimeout(promise, message = "Die Anfrage dauert zu lange. Bitte prüfe deine Verbindung und versuche es erneut.", timeoutMs = cloudRequestTimeoutMs) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
   return Promise.race([
     promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    })
-  ]);
+    timeout
+  ]).finally(() => window.clearTimeout(timeoutId));
 }
 
 if ("serviceWorker" in navigator) {
@@ -2282,13 +2285,11 @@ async function addFriendToAccount(value) {
     let data;
     let error;
     try {
-      ({ data, error } = await Promise.race([
+      ({ data, error } = await withTimeout(
         supabaseClient.rpc("send_friend_request_by_email", { friend_email: friend }),
-        new Promise((resolve) => window.setTimeout(() => resolve({
-          data: null,
-          error: { code: "FRIEND_TIMEOUT", message: "Die Freundesuche dauert zu lange. Bitte versuche es erneut." }
-        }), 8000))
-      ]));
+        "Die Freundesuche dauert zu lange. Bitte versuche es erneut.",
+        15000
+      ));
     } catch (requestError) {
       setFriendFeedback("Freundesuche gerade nicht erreichbar. Bitte prüfe die Cloud-Verbindung.", "error");
       setCloudStatus(
@@ -5112,18 +5113,38 @@ async function loadCurrentProfile() {
     return;
   }
 
-  const { data, error } = await withTimeout(
-    supabaseClient.from("profiles").select("*").eq("id", currentUser.id).maybeSingle(),
-    "Profil konnte gerade nicht geladen werden. Du bist trotzdem angemeldet."
-  );
-  if (error) {
+  if (profileLoadPromise) return profileLoadPromise;
+  const profileTask = loadCurrentProfileFromCloud();
+  profileLoadPromise = profileTask;
+  try {
+    return await profileTask;
+  } finally {
+    if (profileLoadPromise === profileTask) profileLoadPromise = null;
+  }
+}
+
+async function loadCurrentProfileFromCloud() {
+  const requestedUserId = currentUser?.id;
+  if (!requestedUserId) return;
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient.from("profiles").select("*").eq("id", requestedUserId).maybeSingle(),
+      "Profil konnte gerade nicht geladen werden. Du bist trotzdem angemeldet."
+    );
+    if (currentUser?.id !== requestedUserId) return;
+    if (error) {
+      await useProfileFallback(error);
+      return;
+    }
+
+    const metadataName = currentUser.user_metadata?.display_name || "";
     currentProfile = {
-      id: currentUser.id,
-      display_name: currentUser.user_metadata?.display_name || currentUser.email?.split("@")[0] || "Ich"
+      ...(data || { id: currentUser.id }),
+      display_name: data?.display_name || metadataName || currentUser.email?.split("@")[0] || "Ich"
     };
     const friendsChanged = mergeAccountFriendsFromProfile();
     const linkedFriendsChanged = await loadFriendAccountsFromCloud();
-    console.warn("Profil konnte nicht aus der Profiltabelle geladen werden.", error);
     const normalizedAssignments = renameProfileAssignments("Ich", currentProfile.display_name);
     updateAuthView();
     if (normalizedAssignments) commit();
@@ -5131,15 +5152,21 @@ async function loadCurrentProfile() {
       if (friendsChanged || linkedFriendsChanged) saveState(false);
       render();
     }
-    return;
+  } catch (error) {
+    if (currentUser?.id !== requestedUserId) return;
+    await useProfileFallback(error);
   }
-  const metadataName = currentUser.user_metadata?.display_name || "";
+}
+
+async function useProfileFallback(error) {
+  if (!currentUser) return;
   currentProfile = {
-    ...(data || { id: currentUser.id }),
-    display_name: data?.display_name || metadataName || currentUser.email?.split("@")[0] || "Ich"
+    id: currentUser.id,
+    display_name: currentUser.user_metadata?.display_name || currentUser.email?.split("@")[0] || "Ich"
   };
   const friendsChanged = mergeAccountFriendsFromProfile();
   const linkedFriendsChanged = await loadFriendAccountsFromCloud();
+  console.warn("Profil konnte nicht aus der Profiltabelle geladen werden.", error);
   const normalizedAssignments = renameProfileAssignments("Ich", currentProfile.display_name);
   updateAuthView();
   if (normalizedAssignments) commit();
