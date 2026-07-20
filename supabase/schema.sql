@@ -268,7 +268,7 @@ begin
   select
     matched_user_id,
     coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
-    u.email
+    u.email::text
   from auth.users u
   left join public.profiles p on p.id = u.id
   where u.id = matched_user_id;
@@ -285,7 +285,7 @@ as $$
   select
     f.friend_id,
     coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
-    u.email
+    u.email::text
   from public.user_friends f
   join auth.users u on u.id = f.friend_id
   left join public.profiles p on p.id = f.friend_id
@@ -364,8 +364,8 @@ begin
   select
     matched_user_id,
     coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
-    u.email,
-    response_status
+    u.email::text,
+    response_status::text
   from auth.users u
   left join public.profiles p on p.id = u.id
   where u.id = matched_user_id;
@@ -381,9 +381,9 @@ stable
 as $$
   select
     r.id,
-    case when r.recipient_id = auth.uid() then 'incoming' else 'outgoing' end,
+    (case when r.recipient_id = auth.uid() then 'incoming' else 'outgoing' end)::text,
     coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
-    u.email
+    u.email::text
   from public.friend_requests r
   join auth.users u on u.id = case when r.recipient_id = auth.uid() then r.requester_id else r.recipient_id end
   left join public.profiles p on p.id = u.id

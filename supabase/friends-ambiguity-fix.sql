@@ -62,8 +62,8 @@ begin
   select
     matched_user_id,
     coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
-    u.email,
-    response_status
+    u.email::text,
+    response_status::text
   from auth.users as u
   left join public.profiles as p on p.id = u.id
   where u.id = matched_user_id;
@@ -80,12 +80,32 @@ as $$
   select
     uf.friend_id,
     coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
-    u.email
+    u.email::text
   from public.user_friends as uf
   join auth.users as u on u.id = uf.friend_id
   left join public.profiles as p on p.id = uf.friend_id
   where uf.owner_id = auth.uid()
   order by coalesce(p.display_name, u.email);
+$$;
+
+create or replace function public.list_my_friend_requests()
+returns table(request_id uuid, direction text, display_name text, email text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    fr.id,
+    (case when fr.recipient_id = auth.uid() then 'incoming' else 'outgoing' end)::text,
+    coalesce(p.display_name, split_part(u.email, '@', 1), 'Freund'),
+    u.email::text
+  from public.friend_requests as fr
+  join auth.users as u on u.id = case when fr.recipient_id = auth.uid() then fr.requester_id else fr.recipient_id end
+  left join public.profiles as p on p.id = u.id
+  where (fr.requester_id = auth.uid() or fr.recipient_id = auth.uid())
+    and fr.status = 'pending'
+  order by fr.created_at desc;
 $$;
 
 create or replace function public.sync_trip_friends(target_trip_id uuid, friend_user_ids uuid[])
@@ -118,9 +138,11 @@ end;
 $$;
 
 revoke all on function public.list_my_friends() from public;
+revoke all on function public.list_my_friend_requests() from public;
 revoke all on function public.sync_trip_friends(uuid, uuid[]) from public;
 revoke all on function public.send_friend_request_by_email(text) from public;
 grant execute on function public.list_my_friends() to authenticated;
+grant execute on function public.list_my_friend_requests() to authenticated;
 grant execute on function public.sync_trip_friends(uuid, uuid[]) to authenticated;
 grant execute on function public.send_friend_request_by_email(text) to authenticated;
 
