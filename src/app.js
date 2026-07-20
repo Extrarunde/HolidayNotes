@@ -56,7 +56,7 @@ const cloudRequestTimeoutMs = 12000;
 
 localStorage.removeItem("holiday-notes-theme-mode-v1");
 document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#1f7a63");
-document.documentElement.style.colorScheme = "only light";
+document.documentElement.style.colorScheme = "light";
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {

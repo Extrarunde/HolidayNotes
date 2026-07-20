@@ -1,5 +1,5 @@
 :root {
-  color-scheme: only light;
+  color-scheme: light !important;
   --bg: #f3f5f6;
   --sidebar: #ffffff;
   --surface: #ffffff;
@@ -7,12 +7,18 @@
   --line: #dce3df;
   --text: #17211c;
   --muted: #64706a;
-  --accent: #1f7a63;
-  --accent-strong: #145640;
+  --accent: #218b70;
+  --accent-strong: #126a50;
   --blue: #315f8f;
   --warm: #d36b31;
   --danger: #b73535;
   --shadow: 0 18px 50px rgba(22, 34, 28, 0.1);
+}
+
+html {
+  color-scheme: light !important;
+  background: #f3f5f6;
+  forced-color-adjust: none;
 }
 
 * {
@@ -50,8 +56,30 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
-  color-scheme: only light;
+  color-scheme: light !important;
   forced-color-adjust: none;
+}
+
+/* Keep the interface light even when the device prefers a dark system theme. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light !important;
+    --bg: #f3f5f6;
+    --sidebar: #ffffff;
+    --surface: #ffffff;
+    --surface-soft: #f8faf8;
+    --line: #dce3df;
+    --text: #17211c;
+    --muted: #64706a;
+    --accent: #218b70;
+    --accent-strong: #126a50;
+  }
+
+  html,
+  body {
+    background: #f3f5f6 !important;
+    color: #17211c !important;
+  }
 }
 
 button,
